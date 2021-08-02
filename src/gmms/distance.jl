@@ -88,19 +88,6 @@ gmm_distance(fgmm1::FeatureMolGMM, fgmm2::FeatureMolGMM, features::AbstractVecto
 gmm_distance(mol1::Union{UndirectedGraph,SubgraphView}, mol2::Union{UndirectedGraph,SubgraphView}, σfun=ones, ϕfun=ones; tform1::Union{typeof(identity),AffineMap}=identity, tform2::Union{typeof(identity),AffineMap}=identity) = 
     gmm_distance(MolGMM(mol1, σfun, ϕfun), MolGMM(mol2, σfun, ϕfun), tform1=tform1, tform2=tform2)
 
-# function gmm_distance(fgmm1::FeatureMolGMM, fgmm2::FeatureMolGMM; tform1::Union{typeof(identity),AffineMap}=identity, tform2::Union{typeof(identity),AffineMap}=identity)
-#     dist = zero(promote_type(eltype(fgmm1),eltype(fgmm2)))
-#     for key in keys(fgmm1.gmms) ∪ keys(fgmm2.gmms)
-#         if (haskey(fgmm1.gmms, key) && haskey(fgmm2.gmms, key))
-#             dist += gmm_distance(fgmm1.gmms[key], fgmm2.gmms[key], tform1=tform1, tform2=tform2)
-#         elseif haskey(fgmm1.gmms, key)
-#             dist += gmm_overlap(fgmm1.gmms[key], fgmm1.gmms[key], tform1=identity, tform2=identity)
-#         else
-#             dist += gmm_overlap(fgmm2.gmms[key], fgmm2.gmms[key], tform1=identity, tform2=identity)
-#         end
-#     end
-#     return dist
-# end
 
 function gmm_tanimoto(molgmm1::MolGMM, molgmm2::MolGMM; tform1::Union{typeof(identity),AffineMap}=identity, tform2::Union{typeof(identity),AffineMap}=identity)
     o = gmm_overlap(molgmm1, molgmm2, tform1=tform1, tform2=tform2)
