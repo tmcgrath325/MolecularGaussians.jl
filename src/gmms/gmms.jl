@@ -89,7 +89,7 @@ function FeatureMolGMM(mol::UndirectedGraph,
                         for (i,idx) in enumerate(set)
                             coordmat[:,i] = nodeattr(mol,idx).coords .- center
                         end
-                        n = GOGMA.planefit(coordmat)[1]
+                        n = GaussianMixtureAlignment.planefit(coordmat)[1]
                         dirs = [n, -n]
                     # if it is a hydrogen bond donor, point outward from hydrogens
                     elseif p.first == :donor && directional

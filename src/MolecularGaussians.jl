@@ -8,10 +8,11 @@ using StaticArrays
 
 using LinearAlgebra
 using Optim
-using GOGMA
+using GaussianMixtureAlignment
 
 using PlotlyJS
 
+export add_attributes!, attributes
 export MolGMM, FeatureMolGMM, gmm_overlap, gmm_distance
 export vdwradii, vdwradii!
 export partialcharges, partialcharges!

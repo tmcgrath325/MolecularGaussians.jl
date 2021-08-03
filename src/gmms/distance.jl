@@ -27,7 +27,7 @@ function gm_product_integral(gm1::IsotropicGaussian, gm2::IsotropicGaussian, tfo
             end
         end
     end
-    return -GOGMA.objectivefun(sum(abs2, tform1(gm1.μ)-tform2(gm2.μ)), 
+    return -GaussianMixtureAlignment.objectivefun(sum(abs2, tform1(gm1.μ)-tform2(gm2.μ)), 
                                gm1.σ^2 + gm2.σ^2, 
                                gm1.ϕ * gm2.ϕ,
                                dirdot)
