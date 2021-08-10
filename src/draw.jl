@@ -110,7 +110,7 @@ function drawmol(mol::Union{GraphMol,UndirectedGraph,SubgraphView}, tform=identi
         coordmat[:,idx] = tform(nodeattr(mol,idx).coords)
         push!(traces, drawatom(nodeattr(mol,idx), tform, colordict; markersize=markersize))
     end
-    planedir = GOGMA.planefit(coordmat)[1]
+    planedir = GaussianMixtureAlignment.planefit(coordmat)[1]
     for bond in mol.edges
         if typeof(mol) <: SubgraphView
             bond = mol.graph.edges[bond]
