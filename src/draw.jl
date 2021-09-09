@@ -41,7 +41,7 @@ function plotdrawing(traces::AbstractVector{AbstractTrace}; size=20)
     return plt
 end
 
-function plotdrawing(traces::AbstractVector{<:AbstractVector{<:AbstractTrace}}; size=20)
+function plotdrawing(traces::AbstractVector{<:AbstractVector{<:AbstractTrace}}; size=100)
     tracesvec = AbstractTrace[]
     for trs in traces
         push!(tracesvec, trs...)
@@ -96,7 +96,7 @@ function drawbond(atom1::SDFileAtom, atom2::SDFileAtom, tform=identity, bondorde
     return traces
 end
 
-function drawmol(mol::Union{GraphMol,UndirectedGraph,SubgraphView}, tform=identity, colordict=atom_colors; hydrogens=false, markersize=10, linewidth=1)
+function drawmol(mol::Union{GraphMol,UndirectedGraph,SubgraphView}, tform=identity, colordict=atom_colors; atoms=true, bonds=true, hydrogens=false, markersize=10, linewidth=1)
     traces = AbstractTrace[]
     if !hydrogens == true
         if typeof(mol) <: GraphMol
@@ -106,34 +106,71 @@ function drawmol(mol::Union{GraphMol,UndirectedGraph,SubgraphView}, tform=identi
         end
     end
     coordmat = fill(NaN, 3, length(nodeset(mol)))
-    for (i,idx) in enumerate(nodeset(mol))
-        coordmat[:,idx] = tform(nodeattr(mol,idx).coords)
-        push!(traces, drawatom(nodeattr(mol,idx), tform, colordict; markersize=markersize))
-    end
-    planedir = GaussianMixtureAlignment.planefit(coordmat)[1]
-    for bond in mol.edges
-        if typeof(mol) <: SubgraphView
-            bond = mol.graph.edges[bond]
+    if atoms
+        for (i,idx) in enumerate(nodeset(mol))
+            coordmat[:,idx] = tform(nodeattr(mol,idx).coords)
+            push!(traces, drawatom(nodeattr(mol,idx), tform, colordict; markersize=markersize))
         end
-        bondorder = edgeattr(mol, findedgekey(mol, bond...)).order
-        push!(traces, drawbond(nodeattr(mol,bond[1]), nodeattr(mol,bond[2]), tform, bondorder; linewidth=linewidth)...)
+    end
+    if bonds
+        for bond in mol.edges
+            if typeof(mol) <: SubgraphView
+                bond = mol.graph.edges[bond]
+            end
+            bondorder = edgeattr(mol, findedgekey(mol, bond...)).order
+            push!(traces, drawbond(nodeattr(mol,bond[1]), nodeattr(mol,bond[2]), tform, bondorder; linewidth=linewidth)...)
+        end
     end
     return traces
 end
 
-function drawgaussian(gauss::IsotropicGaussian, tform=identity, op=0.5, color=nothing; sizecoef=1., npts=10)
+function draw_wireframe_sphere(pos, r, w; npts=11, color=default_colors[1], name=nothing, opacity=1., sizecoef=1.)
+    ϕs = range(0, stop=2π, length=npts)
+    θs = range(-π/2, stop=π/2, length=npts)
+    # vertical
+    v_xs = [[r * sizecoef * cos(θ) * sin(ϕ) + pos[1] for θ in θs] for ϕ in ϕs[1:end-1]]
+    v_ys = [[r * sizecoef * cos(θ) * cos(ϕ) + pos[2] for θ in θs] for ϕ in ϕs[1:end-1]]
+    v_zs = [[r * sizecoef * sin(θ) + pos[3] for θ in θs] for ϕ in ϕs[1:end-1]]
+    # horizontal
+    h_xs = [[r * sizecoef * cos(θ) * sin(ϕ) + pos[1] for ϕ in ϕs] for θ in θs]
+    h_ys = [[r * sizecoef * cos(θ) * cos(ϕ) + pos[2] for ϕ in ϕs] for θ in θs]
+    h_zs = [[r * sizecoef * sin(θ) + pos[3] for ϕ in ϕs] for θ in θs] 
+
+    hover = isnothing(name) ? "skip" : nothing
+
+    xs, ys, zs = Float64[], Float64[], Float64[]
+    for i=1:length(v_xs)
+        append!(xs, v_xs[i])
+        push!(xs, NaN)
+        append!(ys, v_ys[i])
+        push!(ys, NaN)
+        append!(zs, v_zs[i])
+        push!(zs, NaN)
+    end
+    for j=1:length(h_xs)
+        append!(xs, h_xs[j])
+        push!(xs, NaN)
+        append!(ys, h_ys[j])
+        push!(ys, NaN)
+        append!(zs, h_zs[j])
+        push!(zs, NaN)
+    end
+
+    return scatter3d(;x=xs, y=ys, z=zs, 
+                      mode="lines",
+                      line=attr(color=color),
+                      opacity=opacity,
+                      showlegend=false, showscale=false, name=name,
+                      hovertemplate="μ = " * string(pos) * "<br>σ = " * string(r) * "<br>ϕ = " *string(w), 
+                      hoverinfo=hover,
+            )
+end
+
+function drawgaussian(gauss::IsotropicGaussian, tform=identity; sizecoef=1., opacity=1., color=default_colors[1], kwargs...)
     # gaussian centered at μ
     pos = tform(gauss.μ)
     r = gauss.σ * sizecoef
-    ϕs = range(0, stop=2π, length=npts)
-    θs = range(-π/2, stop=π/2, length=npts)
-    xs = [[r * cos(θ) * sin(ϕ) + pos[1] for θ in θs, ϕ in ϕs]...]
-    ys = [[r * cos(θ) * cos(ϕ) + pos[2] for θ in θs, ϕ in ϕs]...]
-    zs = [[r * sin(θ) + pos[3] for θ in θs, ϕ in ϕs]...]
-    gtrace = mesh3d(;x=xs, y=ys, z=zs, 
-                    color=color, opacity=op, alphahull = 0, 
-                    showlegend=false, showscale=false, name="", # hoverinfo="skip",
-                    hovertemplate="μ = " * string(gauss.μ) * "<br>σ = " * string(gauss.σ) * "<br>ϕ = " *string(gauss.ϕ)) 
+    gtrace = draw_wireframe_sphere(pos, gauss.σ, gauss.ϕ; color=color, kwargs...)
     if length(gauss.dirs) < 1
         return (gtrace,)
     end
@@ -146,37 +183,37 @@ function drawgaussian(gauss::IsotropicGaussian, tform=identity, op=0.5, color=no
     cntrs = [pos + 1.25*r*dir/norm(dir) for dir in dirs]
     dtrace = cone(;x=[c[1] for c in cntrs], y=[c[2] for c in cntrs], z=[c[3] for c in cntrs], 
                    u=[d[1] for d in dirs], v=[d[2] for d in dirs], w=[d[3] for d in dirs],
-                   colorscale=[[0,color],[1,color]], opacity=op,
+                   colorscale=[[0,color],[1,color]], opacity=opacity,
                    sizemode="absolute", sizeref=0.25,
                    showlegend=false, showscale=false, name="", hoverinfo="skip")
     return (gtrace, dtrace)
 end
 
-function drawIsotropicGMM(gmm::IsotropicGMM, tform=identity, color=default_colors[1]; sizecoef=1.)
+function drawIsotropicGMM(gmm::IsotropicGMM, tform=identity; kwargs...)
     # set opacities with weight values
-    weights = [gauss.ϕ for gauss in gmm.gaussians]
-    opacities = weights/maximum(weights) * 0.25
+    # weights = [gauss.ϕ for gauss in gmm.gaussians]
+    # opacities = weights/maximum(weights) * 0.25
 
     # add a trace for each gaussian
     traces = AbstractTrace[]
     for i=1:length(gmm)
-        push!(traces, drawgaussian(gmm.gaussians[i], tform, opacities[i], color; sizecoef=sizecoef)...)
+        push!(traces, drawgaussian(gmm.gaussians[i], tform; kwargs...)...)
     end
     return traces
 end
 
 function drawIsotropicGMMs(gmms::AbstractVector{<:IsotropicGMM},
-                     tforms=fill(identity,length(gmms)); colors=default_colors, sizecoef=1.)
+                     tforms=fill(identity,length(gmms)); colors=default_colors, kwargs...)
     traces = AbstractTrace[]
     for (i,gmm) in enumerate(gmms)
         # add traces for each GMM
         color = colors[mod(i-1, length(colors))+1]
-        push!(traces, drawIsotropicGMM(gmm, tforms[i], color; sizecoef=sizecoef)...)
+        push!(traces, drawIsotropicGMM(gmm, tforms[i]; color=color, kwargs...)...)
     end
     return traces
 end
 
-function drawMultiGMM(mgmm::MultiGMM, tform=identity, colordict=Dict{Symbol, String}(); colors=default_colors, sizecoef=1.)
+function drawMultiGMM(mgmm::MultiGMM, tform=identity; colordict=Dict{Symbol, String}(), colors=default_colors, kwargs...)
     # add traces from each GMM
     i = 1
     traces = AbstractTrace[]
@@ -186,13 +223,13 @@ function drawMultiGMM(mgmm::MultiGMM, tform=identity, colordict=Dict{Symbol, Str
             push!(colordict, Pair(key, colors[mod(i-1, length(colors))+1]))
             i += i
         end
-        push!(traces, drawIsotropicGMM(mgmm.gmms[key], tform, colordict[key]; sizecoef=sizecoef)...)
+        push!(traces, drawIsotropicGMM(mgmm.gmms[key], tform; color=colordict[key], kwargs...)...)
     end
     return traces
 end
 
 function drawMultiGMMs(mgmms::AbstractVector{<:MultiGMM},
-                            tforms=fill(identity,length(mgmms)), colordict=Dict{Symbol, String}(); colors=default_colors, sizecoef=1.)
+                            tforms=fill(identity,length(mgmms)); colordict=Dict{Symbol, String}(), colors=default_colors, kwargs...)
     # get all keys across the feature GMMs
     allkeys = Set{Symbol}()
     for fgmm in mgmms
@@ -211,39 +248,39 @@ function drawMultiGMMs(mgmms::AbstractVector{<:MultiGMM},
     # add traces from each MultiGMM
     traces = AbstractTrace[]
     for (i,mgmm) in enumerate(mgmms)
-        push!(traces, drawMultiGMM(mgmm, tforms[i], colordict; colors=colors, sizecoef=sizecoef)...)
+        push!(traces, drawMultiGMM(mgmm, tforms[i]; colordict, colors=colors, kwargs...)...)
     end
     return traces
 end
 
-function drawMolGMM(molgmm::MolGMM, tform=identity, color=default_colors[1]; sizecoef=1.)
+function drawMolGMM(molgmm::MolGMM, tform=identity; color=default_colors[1], kwargs...)
     sg = nodesubgraph(molgmm.graph, molgmm.nodes)
     traces = drawmol(sg, tform)
-    push!(traces, drawIsotropicGMM(molgmm.model, tform, color; sizecoef=sizecoef)...)
+    push!(traces, drawIsotropicGMM(molgmm.model, tform; color=color, kwargs...)...)
     return traces
 end
 
-function drawMolGMMs(molgmms::AbstractVector{<:MolGMM}, tforms=fill(identity,length(molgmms)), colors=default_colors; sizecoef=1.)
+function drawMolGMMs(molgmms::AbstractVector{<:MolGMM}, tforms=fill(identity,length(molgmms)); colors=default_colors, kwargs...)
     traces = AbstractTrace[]
     for (i,molgmm) in enumerate(molgmms)
         color = colors[mod(i-1, length(colors))+1]
-        push!(traces, drawMolGMM(molgmm, tforms[i], color; sizecoef=sizecoef)...)
+        push!(traces, drawMolGMM(molgmm, tforms[i]; color=color, kwargs...)...)
     end
     return traces
 end
 
-function drawFeatureMolGMM(fgmm::FeatureMolGMM, tform=identity, colordict=feature_colors; colors=default_colors, sizecoef=1.)
+function drawFeatureMolGMM(fgmm::FeatureMolGMM, tform=identity; colordict=feature_colors, kwargs...)
     sg = nodesubgraph(fgmm.graph, fgmm.nodes)
     traces = drawmol(sg, tform)
-    push!(traces, drawMultiGMM(fgmm.model, tform, colordict; colors=colors, sizecoef=sizecoef)...)
+    push!(traces, drawMultiGMM(fgmm.model, tform; colordict=colordict, kwargs...)...)
     return traces
 end
 
-function drawFeatureMolGMMs(fgmms::AbstractVector{<:FeatureMolGMM}, tforms=fill(identity,length(fgmms)),
-                            colordict=feature_colors; colors=default_colors, sizecoef=1.)
+function drawFeatureMolGMMs(fgmms::AbstractVector{<:FeatureMolGMM}, tforms=fill(identity,length(fgmms));
+                            colordict=feature_colors, kwargs...)
     traces = AbstractTrace[]
     for (i,fgmm) in enumerate(fgmms)
-        push!(traces, drawFeatureMolGMM(fgmm, tforms[i], colordict; colors=colors, sizecoef=sizecoef)...)
+        push!(traces, drawFeatureMolGMM(fgmm, tforms[i]; colordict=colordict, kwargs...)...)
     end
     return traces
 end
