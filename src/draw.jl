@@ -58,43 +58,58 @@ function plotdrawing(traces::AbstractVector{<:AbstractVector{<:AbstractTrace}}; 
     return plt
 end
 
-function drawatom(atom::SDFileAtom, tform=identity, colordict=atom_colors; markersize=10)
-    pos = tform(atom.coords)
-    color = colordict[atom.symbol]
-    return scatter3d(;x=[pos[1]], y=[pos[2]], z=[pos[3]],
+function drawatoms(atoms::AbstractVector{SDFileAtom}, tform=identity, colordict=atom_colors; markersize=10)
+    if isempty(atoms)
+        return
+    end
+    color = colordict[atoms[1].symbol]  # all atoms assumed to be of the same element
+    xs = [tform(a.coords)[1] for a in atoms]
+    ys = [tform(a.coords)[2] for a in atoms]
+    zs = [tform(a.coords)[3] for a in atoms]
+    return scatter3d(;x=xs, y=ys, z=zs,
                      mode="markers", marker=attr(color=color, size=markersize, symbol="circle"),
                      showlegend=false, showscale=false, name="", hoverinfo="skip",
                      hovertemplate="")
 end
 
-function drawbond(atom1::SDFileAtom, atom2::SDFileAtom, tform=identity, bondorder=1, planedir=SVector{3}([0.,0.,1.]); linewidth=3, separation=0.2)
-    pos1 = tform(atom1.coords)
-    pos2 = tform(atom2.coords)
-    traces = AbstractTrace[]
-    sepvec = cross(planedir, pos1.-pos2)
-    sepvec = sepvec/norm(sepvec)
-    if isodd(bondorder)
-        d=0.
-    else
-        d=0.5
-    end
-    for i=1:Int(ceil(bondorder/2))
-        dvec = (d+1-i)*separation*sepvec
-        p1, p2 = pos1 .+ dvec, pos2 .+ dvec
-        push!(traces, scatter3d(;x=[p1[1],p2[1]], y=[p1[2],p2[2]], z=[p1[3],p2[3]],
-                            mode="lines", line=attr(color="black", width=linewidth),
-                            showlegend=false, name="", hoverinfo="skip",
-                            hovertemplate=""))
-        if (d+1-i)>0
-            p1, p2 = pos1 .- dvec, pos2 .- dvec
-            push!(traces, scatter3d(;x=[p1[1],p2[1]], y=[p1[2],p2[2]], z=[p1[3],p2[3]],
-                                    mode="lines", line=attr(color="black", width=linewidth),
-                                    showlegend=false, name="", hoverinfo="skip",
-                                    hovertemplate=""))
+# drawatoms(mol::Union{GraphMol,UndirectedGraph,SubgraphView}, tform=identity, colordict=atom_colors; kwargs...
+#     ) = drawatoms(nodeattrs(mol), tform, colordict; kwargs...)
+
+function drawbonds(nodes::AbstractVector{SDFileAtom}, edges, bonds::AbstractVector{SDFileBond}, tform=identity, planedir=SVector{3}([0.,0.,1.]); linewidth=3, separation=0.2)
+    xs, ys, zs = Float64[], Float64[], Float64[]
+    for (eidx,edge) in enumerate(edges)
+        bondorder = bonds[eidx].order
+        pos1, pos2 = tform(nodes[edge[1]].coords), tform(nodes[edge[2]].coords)
+        sepvec = cross(planedir, pos1.-pos2)
+        sepvec = sepvec/norm(sepvec)
+        if isodd(bondorder)
+            d=0.
+        else
+            d=0.5
+        end
+        for i=1:Int(ceil(bondorder/2))
+            dvec = (d+1-i)*separation*sepvec
+            p1, p2 = pos1 .+ dvec, pos2 .+ dvec
+            push!(xs, p1[1], p2[1], NaN)
+            push!(ys, p1[2], p2[2], NaN)
+            push!(zs, p1[3], p2[3], NaN)
+            if (d+1-i)>0
+                p1, p2 = pos1 .- dvec, pos2 .- dvec
+                push!(xs, p1[1], p2[1], NaN)
+                push!(ys, p1[2], p2[2], NaN)
+                push!(zs, p1[3], p2[3], NaN)
+            end
         end
     end
-    return traces
+
+    return scatter3d(;x=xs, y=ys, z=zs,
+                      mode="lines", line=attr(color="black", width=linewidth),
+                      howlegend=false, name="", hoverinfo="skip",
+                      hovertemplate="")
 end
+
+drawbonds(mol::Union{GraphMol,UndirectedGraph,SubgraphView}, tform=identity, planedir=SVector{3}([0.,0.,1.]); kwargs...
+    ) = drawbonds(nodeattrs(mol), mol.edges, edgeattrs(mol), tform, planedir; kwargs...)
 
 function drawmol(mol::Union{GraphMol,UndirectedGraph,SubgraphView}, tform=identity, colordict=atom_colors; atoms=true, bonds=true, hydrogens=false, markersize=10, linewidth=1)
     traces = AbstractTrace[]
@@ -105,21 +120,37 @@ function drawmol(mol::Union{GraphMol,UndirectedGraph,SubgraphView}, tform=identi
             mol = nodesubgraph(removehydrogens(mol.graph), nodeset(removehydrogens(mol.graph)) ∩ nodeset(mol))
         end
     end
-    coordmat = fill(NaN, 3, length(nodeset(mol)))
-    if atoms
-        for (i,idx) in enumerate(nodeset(mol))
-            coordmat[:,idx] = tform(nodeattr(mol,idx).coords)
-            push!(traces, drawatom(nodeattr(mol,idx), tform, colordict; markersize=markersize))
+
+    formula = molecularformula(mol)
+    elements = Symbol[]
+    for idx in eachindex(formula)
+        if isletter(formula[idx])
+            # the last character should always be a number
+            if isletter(formula[idx+1])
+                push!(elements, Symbol(formula[idx:idx+1]))
+            else
+                push!(elements, Symbol(formula[idx]))
+            end
         end
     end
-    if bonds
-        for bond in mol.edges
-            if typeof(mol) <: SubgraphView
-                bond = mol.graph.edges[bond]
+
+    coordmat = fill(NaN, 3, length(nodeset(mol)))
+    # each atom type (CHONS, in most cases) gets its own trace to differentiate between colors, while keeping the number of traces low
+    for el in elements
+        elatoms = SDFileAtom[]
+        for idx in nodeset(mol)
+            if nodeattr(mol,idx).symbol == el
+                coordmat[:,idx] = tform(nodeattr(mol,idx).coords)
+                push!(elatoms, nodeattr(mol,idx))
             end
-            bondorder = edgeattr(mol, findedgekey(mol, bond...)).order
-            push!(traces, drawbond(nodeattr(mol,bond[1]), nodeattr(mol,bond[2]), tform, bondorder; linewidth=linewidth)...)
         end
+        if atoms && !isempty(elatoms)
+            push!(traces, drawatoms(elatoms, tform, colordict; markersize=markersize))
+        end
+    end
+
+    if bonds
+        push!(traces, drawbonds(mol, tform; linewidth=linewidth))
     end
     return traces
 end
