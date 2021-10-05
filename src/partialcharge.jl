@@ -1,3 +1,4 @@
+# Reads partial charge information for molecules loaded from the PubChem database
 function partialcharges(mol::UndirectedGraph, nodes::Set{Int}=nodeset(mol))
     str2pair(str) = Pair{Int,Float64}(parse(Int, str[1]),parse(Float64, str[2]))
     pcstrarray = try attributes(mol, :PUBCHEM_MMFF94_PARTIAL_CHARGES)
@@ -33,17 +34,3 @@ function partialcharges!(mol::SubgraphView)
     ppc = get!(attributes(pmol), :partialcharges, partialcharges!(pmol))
     return filter(pr -> pr.first ∈ nodeset(mol), ppc)
 end
-
-# """
-#     pc = partialcharge(mol, idx)
-
-# Returns the MMFF94 partial charge of the atoms at node index `idx` in molecule in `mol`.
-# """
-# partialcharges!(mol::UndirectedGraph, idx::Int) = get!(attributes(mol), :partialcharges, partialcharges!(mol))[idx]
-# function partialcharges!(mol::SubgraphView, idx::Int) 
-#     if idx ∉ nodeset(mol)
-#         throw(ArgumentError("No atom with an index of "*string(idx)*" is present in the Subgraph"))
-#     else
-#         return partialcharges!(mol.graph, idx)
-#     end
-# end

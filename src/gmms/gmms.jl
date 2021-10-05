@@ -1,14 +1,44 @@
-struct MolGMM{T<:Real,N}
-    model::IsotropicGMM{T,N}
+import Base: eltype
+
+# AtomGaussian
+
+struct AtomGaussian{N,T<:Real} <: AbstractIsotropicGaussian{N,T}
+    μ::SVector{N,T}
+    σ::T
+    ϕ::T
+    dirs::Vector{SVector{N,T}}
+    node::SDFileAtom
+    nodeidx::Int
+end
+
+"""
+"""
+function AtomGaussian(atom::SDFileAtom, nodeidx, σ, ϕ)
+    N = length(atom.coords)
+    T = eltype(atom.coords)
+    return AtomGaussian{N,T}(SVector{N,T}(atom.coords), T(σ), T(ϕ), SVector{N,T}[], atom, nodeidx)
+end
+
+AtomGaussian(mol::Union{UndirectedGraph, SubgraphView}, nodeidx, σdict, ϕdict
+    ) = AtomGaussian(nodeattr(mol,nodeidx), nodeidx, σdict[nodeidx], ϕdict[nodeidx])
+
+function AtomGaussian(μ::AbstractArray, σ::Real, ϕ::Real, dirs::AbstractArray=SVector{length(μ),eltype(μ)}[], node=SDFileAtom(), nodeidx=0)
+    t = promote_type(eltype(μ), typeof(σ), typeof(ϕ), eltype(eltype(dirs)))
+    return AtomGaussian{length(μ),t}(SVector{length(μ),t}(μ), t(σ), t(ϕ), SVector{length(μ),t}[SVector{length(μ),t}(dir/norm(dir)) for dir in dirs], node, nodeidx)
+end
+
+convert(::Type{AtomGaussian{N,T}}, g::AtomGaussian) where {N,T} = AtomGaussian(SVector{N,T}(g.μ), T(g.σ), T(g.ϕ), Vector{SVector{N,T}}(g.dirs), g.node, g.nodeidx)
+
+
+# MolGMM
+
+struct MolGMM{N,T<:Real} <: AbstractIsotropicGMM{N,T}
+    gaussians::Vector{AtomGaussian{N,T}}
     graph::Union{UndirectedGraph,SubgraphView}
     nodes::Set{Int}
-    σfun
-    ϕfun
+    σfun::Function
+    ϕfun::Function
 end
-Base.eltype(::Type{MolGMM{T,N}}) where T where N where M = T
-Base.length(gmm::MolGMM) = length(gmm.model.gaussians)
-Base.size(gmm::MolGMM{T,N}) where T where N where M = (length(gmm), N)
-Base.size(gmm::MolGMM, idx) = size(gmm)[idx]
 
 """
     model = MolGMM(mol, σfun=ones, ϕfun=ones, nodes=nodeset(mol))
@@ -26,32 +56,31 @@ function MolGMM(mol::UndirectedGraph,
                 σfun = ones, 
                 ϕfun = ones,
                 nodes=nodeset(mol))
-    dim = length(nodeattrs(mol)[1].coords)
-    valtype = eltype(nodeattrs(mol)[1].coords)
-    σdict, ϕdict = Dict{Int, valtype}(σfun(mol)), Dict{Int, valtype}(ϕfun(mol))
-    atoms = Vector{IsotropicGaussian{valtype,dim}}([IsotropicGaussian(SVector{dim}(nodeattr(mol, idx).coords), σdict[idx], ϕdict[idx]) for idx in nodes])
+    N = length(nodeattrs(mol)[1].coords)
+    T = eltype(nodeattrs(mol)[1].coords)
+    σdict, ϕdict = Dict{Int, T}(σfun(mol)), Dict{Int, T}(ϕfun(mol))
+    atoms = [AtomGaussian(nodeattr(mol, i), i, σdict[i], ϕdict[i]) for i in nodes]
     # remove atoms with ϕ = 0
     filter!(atom->atom.ϕ≠0,atoms)
-    return MolGMM(IsotropicGMM(atoms), mol, nodes, σfun, ϕfun)
+    return MolGMM{N,T}(atoms, mol, nodes, σfun, ϕfun)
 end
+
+eltype(::MolGMM{N,T}) where {N,T} = AtomGaussian{N,T}
 
 MolGMM(submol::SubgraphView, σfun=ones, ϕfun=ones) = MolGMM(submol.graph, σfun, ϕfun, nodeset(submol))
 
-struct FeatureMolGMM{T<:Real,N}
-    model::MultiGMM{T,N}
+struct PharmacophoreGMM{N,T<:Real,K} <: AbstractIsotropicMultiGMM{N,T,K}
+    gmms::Dict{K, IsotropicGMM{N,T}}
     directional::Bool
     graph::Union{UndirectedGraph,SubgraphView}
     nodes::Set{Int}
-    σfun
-    ϕfun
+    σfun::Function
+    ϕfun::Function
 end
-Base.eltype(::Type{FeatureMolGMM{T,N}}) where T where N = T
-Base.length(fgmm::FeatureMolGMM) = sum([length(fgmm.model.gmms[key]) for key in keys(fgmm.model.gmms)])
-Base.size(fgmm::FeatureMolGMM{T,N}) where T where N = (sum([length(fgmm.model.gmms[key]) for key in keys(fgmm.model.gmms)]), N)
-Base.size(fgmm::FeatureMolGMM, idx) = size(fgmm)[idx]
+
 
 """
-    model = FeatureMolGMM(mol, σfun=vdwvolume_sigma, ϕfun=ones, nodes=nodeset(mol), features=pubchem_features)
+    model = PharmacophoreGMM(mol, σfun=vdwvolume_sigma, ϕfun=ones, nodes=nodeset(mol), features=pubchem_features)
 
 Creates a set Gaussian mixture models from a molecule or subgraph `mol`, with each model corresponding to a 
 particular type of molecular feature (e.g. ring structures)
@@ -66,7 +95,7 @@ indexes of the molecule's graph.
 
 `directional` specifies whether or not geometric constraints for ring structures and hydrogen bond donors will be included.
 """
-function FeatureMolGMM(mol::UndirectedGraph,
+function PharmacophoreGMM(mol::UndirectedGraph,
                        σfun = vdwvolume_sigma, # vdwradii!,
                        ϕfun = ones,
                        nodes = nodeset(mol);
@@ -75,10 +104,10 @@ function FeatureMolGMM(mol::UndirectedGraph,
     dim = length(nodeattrs(mol)[1].coords)
     valtype = eltype(nodeattrs(mol)[1].coords)
     # add a GMM for each type of feature
-    gmms = Dict{Symbol,IsotropicGMM{valtype,dim}}()
+    gmms = Dict{Symbol,IsotropicGMM{dim,valtype}}()
     for p in pharmfeatures!(mol)
         if p.first in features
-            feats = IsotropicGaussian{valtype, dim}[]
+            feats = IsotropicGaussian{dim,valtype}[]
             for set in p.second
                 # check if all atoms in the feature are represented by allowed nodes
                 if set ∩ nodes == set
@@ -122,18 +151,18 @@ function FeatureMolGMM(mol::UndirectedGraph,
                     else
                         dirs = nothing
                     end
-                    push!(feats, atoms_to_feature(mol, set, σfun, ϕfun, identity, dirs))
+                    push!(feats, atoms_to_feature(mol, set, σfun, ϕfun, dirs))
                 end
             end
             push!(gmms, Pair(p.first, IsotropicGMM(feats)))
         end
     end
     gmms = gmms
-    return FeatureMolGMM(MultiGMM(gmms), directional, mol, nodes, σfun, ϕfun)
+    return PharmacophoreGMM(gmms, directional, mol, nodes, σfun, ϕfun)
 end
 
-FeatureMolGMM(submol::SubgraphView, σfun=ones, ϕfun=ones, features=pubchem_features, directional=true) = 
-    FeatureMolGMM(submol.graph, σfun, ϕfun, nodeset(submol); features=features,directional=directional)
+PharmacophoreGMM(submol::SubgraphView, σfun=ones, ϕfun=ones, features=pubchem_features, directional=true) = 
+    PharmacophoreGMM(submol.graph, σfun, ϕfun, nodeset(submol); features=features,directional=directional)
 
 # descriptive display
 
@@ -142,8 +171,9 @@ Base.show(io::IO, molgmm::MolGMM) = println(io,
     " with $(length(molgmm)) Gaussians."
 )
 
-Base.show(io::IO, fmolgmm::FeatureMolGMM) = println(io,
-    "FeatureMolGMM from molecule with formula $(typeof(fmolgmm.graph)<:GraphMol ? molecularformula(fmolgmm.graph) : molecularformula(fmolgmm.graph.graph))",
-    " with $(length(fmolgmm)) Gaussians in $(length(fmolgmm.model)) GMMs with labels:\n",
-    "$([label for (label, gmm) in fmolgmm.model.gmms])"
+Base.show(io::IO, pgmm::PharmacophoreGMM) = println(io,
+    summary(pgmm),
+    " from molecule with formula $(typeof(pgmm.graph)<:GraphMol ? molecularformula(pgmm.graph) : molecularformula(pgmm.graph.graph))",
+    " with $(length(pgmm)) Gaussians in $(length(pgmm)) GMMs with labels:\n",
+    "$([label for (label, gmm) in pgmm.gmms])"
 )
