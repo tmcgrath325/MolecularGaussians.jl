@@ -1,8 +1,12 @@
 # Van der Waals radii in angstroms
 const van_der_waals_radii = Dict{Int64, Float64}(MolecularGraph.ATOM_VANDERWAALS_RADII)
 
+function vdwradius(atom::SDFileAtom)
+    return van_der_waals_radii[atomnumber(atom.symbol)]
+end
+
 function vdwradii(mol::Union{UndirectedGraph,SubgraphView})
-    return Dict(zip(nodeset(mol),[van_der_waals_radii[atomnumber(nodeattr(mol,idx).symbol)] for idx in nodeset(mol)]))
+    return Dict(zip(nodeset(mol), [vdwradius(nodeattr(mol,idx)) for idx in nodeset(mol)]))
 end
 
 """

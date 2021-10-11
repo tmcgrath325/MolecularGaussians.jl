@@ -1,11 +1,11 @@
 const atom_colors =     
-   Dict(:C  => "#383838",   # dark grey
-        :H  => "#b5b5b5",   # light grey
-        :O  => "#d62728",   # red
-        :N  => "#1f77b4",   # blue
-        :S  => "#cbd123",   # yellow
-        :Cl => "#2ca02c",   # green
-        :P  => "#e29522")   # orange
+    Dict(:C  => "#383838",   # dark grey
+         :H  => "#b5b5b5",   # light grey
+         :O  => "#d62728",   # red
+         :N  => "#1f77b4",   # blue
+         :S  => "#cbd123",   # yellow
+         :Cl => "#2ca02c",   # green
+         :P  => "#e29522")   # orange
 
 const feature_colors = 
     Dict(:donor         => "#ff00ff",  # magenta
@@ -31,12 +31,11 @@ function drawatoms(atoms::AbstractVector{SDFileAtom}; colordict=atom_colors, mar
 end
 
 
-function drawbonds(nodes::AbstractVector{SDFileAtom}, edges, bonds::AbstractVector{SDFileBond}, planedir=SVector{3}([0.,0.,1.]); linewidth=3, separation=0.2)
+function drawbonds(nodes::AbstractVector{SDFileAtom}, edges, edgeidxs, bonds::AbstractVector{SDFileBond}, planedir=SVector{3}([0.,0.,1.]); linewidth=3, separation=0.2)
     xs, ys, zs = Float64[], Float64[], Float64[]
-    for (eidx,edge) in enumerate(edges)
+    for eidx in edgeidxs
+        edge = edges[eidx]
         bondorder = bonds[eidx].order
-        @show edge
-        @show nodes
         pos1, pos2 = nodes[edge[1]].coords, nodes[edge[2]].coords
         sepvec = cross(planedir, pos1.-pos2)
         sepvec = sepvec/norm(sepvec)
@@ -67,10 +66,10 @@ function drawbonds(nodes::AbstractVector{SDFileAtom}, edges, bonds::AbstractVect
 end
 
 drawbonds(mol::UndirectedGraph, planedir=SVector{3}([0.,0.,1.]); kwargs...
-    ) = drawbonds(nodeattrs(mol), mol.edges, edgeattrs(mol), planedir; kwargs...)
+    ) = drawbonds(nodeattrs(mol), mol.edges, 1:length(mol.edges), edgeattrs(mol), planedir; kwargs...)
 
-drawbonds(sg::UndirectedGraph, planedir=SVector{3}([0.,0.,1.]); kwargs...
-    ) = drawbonds(nodeattrs(sg), sg.graph.edges[collect(sg.edges)], edgeattrs(sg), planedir; kwargs...)
+drawbonds(sg::SubgraphView, planedir=SVector{3}([0.,0.,1.]); kwargs...
+    ) = drawbonds(nodeattrs(sg), sg.graph.edges, sg.edges, edgeattrs(sg), planedir; kwargs...)
 
 function drawmol(mol::Union{GraphMol,UndirectedGraph,SubgraphView}; colordict=atom_colors, atoms=true, bonds=true, hydrogens=false, markersize=10, linewidth=1)
     traces = AbstractTrace[]
@@ -84,7 +83,6 @@ function drawmol(mol::Union{GraphMol,UndirectedGraph,SubgraphView}; colordict=at
 
     formula = isa(mol,SubgraphView) ? molecularformula(mol.graph) : molecularformula(mol)
     elements = Symbol[]
-    @show formula
     for idx in eachindex(formula)
         if isletter(formula[idx])
             # the last character should always be a number
@@ -121,9 +119,9 @@ function drawmol(mol::Union{GraphMol,UndirectedGraph,SubgraphView}; colordict=at
     return traces
 end
 
-function drawMolGMM(molgmm::MolGMM; color=default_colors[1], kwargs...)
+function drawMolGMM(molgmm::MolGMM; color=default_colors[1], atoms=true, bonds=true, hydrogens=false, markersize=10, linewidth=1, kwargs...)
     sg = nodesubgraph(molgmm.graph, molgmm.nodes)
-    traces = drawmol(sg)
+    traces = drawmol(sg; atoms=atoms, bonds=bonds, hydrogens=hydrogens, markersize=markersize, linewidth=linewidth)
     push!(traces, drawIsotropicGMM(molgmm; color=color, kwargs...)...)
     return traces
 end
@@ -137,16 +135,16 @@ function drawMolGMMs(molgmms::AbstractVector{<:MolGMM}; colors=default_colors, k
     return traces
 end
 
-function drawPharmacophoreGMM(fgmm::PharmacophoreGMM; colordict=feature_colors, kwargs...)
+function drawPharmacophoreGMM(fgmm::PharmacophoreGMM; colordict=feature_colors, atoms=true, bonds=true, hydrogens=false, markersize=10, linewidth=1, kwargs...)
     sg = nodesubgraph(fgmm.graph, fgmm.nodes)
-    traces = drawmol(sg)
+    traces = drawmol(sg; atoms=atoms, bonds=bonds, hydrogens=hydrogens, markersize=markersize, linewidth=linewidth)
     push!(traces, drawMultiGMM(fgmm; colordict=colordict, kwargs...)...)
     return traces
 end
 
 function drawPharmacophoreGMMs(fgmms::AbstractVector{<:PharmacophoreGMM}; colordict=feature_colors, kwargs...)
     traces = AbstractTrace[]
-    for (i,fgmm) in enumerate(fgmms)
+    for fgmm in fgmms
         push!(traces, drawPharmacophoreGMM(fgmm; colordict=colordict, kwargs...)...)
     end
     return traces

@@ -40,6 +40,8 @@ struct MolGMM{N,T<:Real} <: AbstractIsotropicGMM{N,T}
     ϕfun::Function
 end
 
+eltype(::Type{MolGMM{N,T}}) where {N,T} = AtomGaussian{N,T}
+
 """
     model = MolGMM(mol, σfun=ones, ϕfun=ones, nodes=nodeset(mol))
 
@@ -53,9 +55,9 @@ If `nodes` is provided, the Gaussian mixture model will be constructed only from
 indexes of the molecule's graph.
 """
 function MolGMM(mol::UndirectedGraph,
-                σfun = ones, 
-                ϕfun = ones,
-                nodes=nodeset(mol))
+                nodes=nodeset(mol);
+                σfun = vdwvolume_sigma, 
+                ϕfun = ones)
     N = length(nodeattrs(mol)[1].coords)
     T = eltype(nodeattrs(mol)[1].coords)
     σdict, ϕdict = Dict{Int, T}(σfun(mol)), Dict{Int, T}(ϕfun(mol))
@@ -65,19 +67,19 @@ function MolGMM(mol::UndirectedGraph,
     return MolGMM{N,T}(atoms, mol, nodes, σfun, ϕfun)
 end
 
-eltype(::MolGMM{N,T}) where {N,T} = AtomGaussian{N,T}
-
-MolGMM(submol::SubgraphView, σfun=ones, ϕfun=ones) = MolGMM(submol.graph, σfun, ϕfun, nodeset(submol))
+MolGMM(submol::SubgraphView; kwargs...) = MolGMM(submol.graph, nodeset(submol); kwargs...)
 
 struct PharmacophoreGMM{N,T<:Real,K} <: AbstractIsotropicMultiGMM{N,T,K}
     gmms::Dict{K, IsotropicGMM{N,T}}
-    directional::Bool
     graph::Union{UndirectedGraph,SubgraphView}
     nodes::Set{Int}
     σfun::Function
     ϕfun::Function
+    features::Vector{K}
+    directional::Bool
 end
 
+eltype(::Type{PharmacophoreGMM{N,T,K}}) where {N,T,K} = Pair{K, IsotropicGMM{N,T}}
 
 """
     model = PharmacophoreGMM(mol, σfun=vdwvolume_sigma, ϕfun=ones, nodes=nodeset(mol), features=pubchem_features)
@@ -96,23 +98,23 @@ indexes of the molecule's graph.
 `directional` specifies whether or not geometric constraints for ring structures and hydrogen bond donors will be included.
 """
 function PharmacophoreGMM(mol::UndirectedGraph,
-                       σfun = vdwvolume_sigma, # vdwradii!,
-                       ϕfun = ones,
-                       nodes = nodeset(mol);
-                       features = pubchem_features,
-                       directional = true)
+                          nodes = nodeset(mol);
+                          σfun = vdwvolume_sigma,
+                          ϕfun = ones,
+                          features = pubchem_features,
+                          directional = true)
     dim = length(nodeattrs(mol)[1].coords)
     valtype = eltype(nodeattrs(mol)[1].coords)
     # add a GMM for each type of feature
     gmms = Dict{Symbol,IsotropicGMM{dim,valtype}}()
-    for p in pharmfeatures!(mol)
-        if p.first in features
+    for (key, nodesets) in pharmfeatures!(mol)
+        if key in features
             feats = IsotropicGaussian{dim,valtype}[]
-            for set in p.second
+            for set in nodesets
                 # check if all atoms in the feature are represented by allowed nodes
                 if set ∩ nodes == set
                     # if it is a ring feature, add normal vectors
-                    if (p.first == :rings || p.first == :aromaticrings) && directional
+                    if (key == :rings || key == :aromaticrings) && directional
                         center = sum([nodeattr(mol,idx).coords for idx in set])/length(set)
                         coordmat = fill(zero(valtype), 3, length(set))
                         for (i,idx) in enumerate(set)
@@ -121,48 +123,79 @@ function PharmacophoreGMM(mol::UndirectedGraph,
                         n = GaussianMixtureAlignment.planefit(coordmat)[1]
                         dirs = [n, -n]
                     # if it is a hydrogen bond donor, point outward from hydrogens
-                    elseif p.first == :donor && directional
-                        dirs = Vector{valtype}[]   
-                        for idx in set
-                            for neigh in neighbors(mol,idx)
-                                if nodeattr(mol,neigh.second).symbol == :H
-                                    push!(dirs, nodeattr(mol,neigh.second).coords - nodeattr(mol,idx).coords)
-                                end
+                    elseif key == :donor && directional
+                        if length(set)==1 
+                            dirs = Vector{valtype}[]   
+                            idx = collect(set)[1]
+                            for (edge,neigh) in neighbors(mol,idx)
+                                if nodeattr(mol,neigh).symbol == :H
+                                    push!(dirs, nodeattr(mol,neigh).coords - nodeattr(mol,idx).coords)
+                                end                                
                             end
+                        else
+                            dirs = nothing
                         end
                     # if it is a hydrogen bond acceptor, point along the lone pair orbitals
-                    elseif p.first == :acceptor && directional
+                    elseif key == :acceptor && directional
                         # the acceptor should be a single atom
                         if length(set) != 1
                             dirs = nothing
                         else
                             idx = collect(set)[1]
+                            neighs = collect(neighbors(mol,idx))
                             if hybridization(mol)[idx] == :sp3      # tetrahedral
-                                # TODO
-                                # need at least 2 bonds, then find the other directions
-                                dirs = nothing
-                            elseif hybridization(mol)[idx] == :sp2  # planar
-                                # TODO
-                                # need to get the plane using hybridization of the atom's neighbors (?)
-                                dirs = nothing
+                                if length(neighs) == 3
+                                    # if there are 3 bonds
+                                    bonddir1 = nodeattr(mol,neighs[1].second).coords .- nodeattr(mol,idx).coords
+                                    bonddir2 = nodeattr(mol,neighs[2].second).coords .- nodeattr(mol,idx).coords
+                                    bonddir3 = nodeattr(mol,neighs[3].second).coords .- nodeattr(mol,idx).coords
+                                    dirs = Vector{valtype}[-normalize(bonddir1.+bonddir2.+bonddir3)]
+                                elseif lengh(neighs) == 2
+                                    # if there are 2 bonds
+                                    bonddir1 = nodeattr(mol,neighs[1].second.coords) .- nodeattr(mol,idx).coords
+                                    bonddir2 = nodeattr(mol,neighs[2].second.coords) .- nodeattr(mol,idx).coords
+                                    axis1 = normalize(bonddir1.+bonddir2)
+                                    axis2 = normalize(cross(bonddir1,bonddir2))
+                                    R = AngleAxis(π,axis2...) * AngleAxis(π/2,axis1...)
+                                    dirs = Vector{valtype}[R*bonddir1, R*bonddir2]
+                                else
+                                    dirs = nothing
+                                end
+                            elseif hybridization(mol)[idx] == :sp2  # trigonal planar
+                                # if there are two bonds, use them to find the lone pair's direction
+                                if length(neighs) != 2
+                                    dirs = nothing
+                                else
+                                    dirs = Vector{valtype}[]
+                                    bonddir1 = nodeattr(mol,neighs[1].second).coords .- nodeattr(mol,idx).coords
+                                    bonddir2 = nodeattr(mol,neighs[2].second).coords .- nodeattr(mol,idx).coords
+                                    axis = normalize(cross(bonddir1, bonddir2))
+                                    push!(dirs, AngleAxis(4π/3, axis...)*bonddir1)
+                                end
+                            elseif hybridization(mol)[idx] == :sp   # linear
+                                # direction points along the axis of the atom's single bond
+                                if length(neighs) != 1
+                                    dirs = nothing
+                                else
+                                    dirs = Vector{valtype}[nodeattr(nodeattr(mol,idx) .- mol,neighs[1].second.coords)]
+                                end
                             end
                         end
                     # otherwise there is no geometric constraint
                     else
                         dirs = nothing
                     end
-                    push!(feats, atoms_to_feature(mol, set, σfun, ϕfun, dirs))
+                    push!(feats, atoms_to_feature(mol, set, dirs; σfun=σfun, ϕfun=ϕfun))
                 end
             end
-            push!(gmms, Pair(p.first, IsotropicGMM(feats)))
+            push!(gmms, Pair(key, IsotropicGMM(feats)))
         end
     end
     gmms = gmms
-    return PharmacophoreGMM(gmms, directional, mol, nodes, σfun, ϕfun)
+    return PharmacophoreGMM(gmms, mol, nodes, σfun, ϕfun, features, directional)
 end
 
-PharmacophoreGMM(submol::SubgraphView, σfun=ones, ϕfun=ones, features=pubchem_features, directional=true) = 
-    PharmacophoreGMM(submol.graph, σfun, ϕfun, nodeset(submol); features=features,directional=directional)
+PharmacophoreGMM(submol::SubgraphView; kwargs...) = PharmacophoreGMM(submol.graph, nodeset(submol); kwargs...)
 
 # descriptive display
 
@@ -174,6 +207,6 @@ Base.show(io::IO, molgmm::MolGMM) = println(io,
 Base.show(io::IO, pgmm::PharmacophoreGMM) = println(io,
     summary(pgmm),
     " from molecule with formula $(typeof(pgmm.graph)<:GraphMol ? molecularformula(pgmm.graph) : molecularformula(pgmm.graph.graph))",
-    " with $(length(pgmm)) Gaussians in $(length(pgmm)) GMMs with labels:\n",
+    " with $(sum(length(gmm.second) for gmm in pgmm)) Gaussians in $(length(pgmm)) GMMs with labels:\n",
     "$([label for (label, gmm) in pgmm.gmms])"
 )

@@ -4,6 +4,7 @@ using LinearAlgebra
 
 using StaticArrays
 using CoordinateTransformations
+using Rotations
 
 using MolecularGraph
 using MolecularGraph.Graph
@@ -25,6 +26,7 @@ export vdwradii, vdwradii!
 export partialcharges, partialcharges!
 export pharmfeatures, pharmfeatures!
 export inertial_transforms, rocs_align
+export affinetransform
 export drawMolGMM, drawMolGMMs, drawmol, drawPharmacophoreGMMs, plotdrawing
 
 include("utils.jl")
@@ -34,6 +36,5 @@ include("radius.jl")
 include("partialcharge.jl")
 include("pharmfeatures.jl")
 include("gmms/pharmacophores.jl")
-include("gmms/rocsalign.jl")
 include("draw.jl")
 end
