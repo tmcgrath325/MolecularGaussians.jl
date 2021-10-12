@@ -123,14 +123,14 @@ function drawmol(mol::Union{GraphMol,UndirectedGraph,SubgraphView}; colordict=at
     return traces
 end
 
-function drawMolGMM(molgmm::MolGMM; color=default_colors[1], atoms=true, bonds=true, hydrogens=false, markersize=10, linewidth=1, kwargs...)
+function drawMolGMM(molgmm::MolGMM; color=GaussianMixtureAlignment.default_colors[1], atoms=true, bonds=true, hydrogens=false, markersize=10, linewidth=1, kwargs...)
     sg = nodesubgraph(molgmm.graph, molgmm.nodes)
     traces = drawmol(sg; atoms=atoms, bonds=bonds, hydrogens=hydrogens, markersize=markersize, linewidth=linewidth)
     push!(traces, drawIsotropicGMM(molgmm; color=color, kwargs...)...)
     return traces
 end
 
-function drawMolGMMs(molgmms::AbstractVector{<:MolGMM}; colors=default_colors, kwargs...)
+function drawMolGMMs(molgmms::AbstractVector{<:MolGMM}; colors=GaussianMixtureAlignment.default_colors, kwargs...)
     traces = AbstractTrace[]
     for (i,molgmm) in enumerate(molgmms)
         color = colors[mod(i-1, length(colors))+1]
