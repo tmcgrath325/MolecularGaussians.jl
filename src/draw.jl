@@ -1,3 +1,7 @@
+using PlotlyJS
+
+export drawMolGMM, drawMolGMMs, drawmol, drawPharmacophoreGMMs, plotdrawing
+
 const atom_colors =     
     Dict(:C  => "#383838",   # dark grey
          :H  => "#b5b5b5",   # light grey
