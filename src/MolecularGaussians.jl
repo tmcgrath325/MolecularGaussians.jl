@@ -1,36 +1,60 @@
+"""
+MolecularGaussians.jl
+===========================
+
+MolecularGaussians.jl is a package used to align molecules and their pharmacophore features by modeling them as Gaussian mixture models. 
+It makes use of GaussianMixtureAlignment.jl to compute alignments, overlap, and distances between molecules. 
+
+REPL help
+=========
+
+? followed by an algorith or constructor name will print help to the terminal. See: \n
+    \t?MolGMM \n
+    \t?PharmacophoreGMM \n
+    \t?gogma_align \n
+    \t?tiv_gogma_align \n
+    \t?rocs_align \n
+"""
 module MolecularGaussians
+
+using LinearAlgebra
+
+using StaticArrays
+using CoordinateTransformations
+using Rotations
 
 using MolecularGraph
 using MolecularGraph.Graph
 using MolecularGraph: atommatch, bondmatch, emaptonmap
-using CoordinateTransformations
-using StaticArrays
 
-using LinearAlgebra
-using Optim
 using GaussianMixtureAlignment
+using GaussianMixtureAlignment: AbstractGaussian, AbstractSingleGMM, AbstractMultiGMM, AbstractGMM
+using GaussianMixtureAlignment: AbstractIsotropicGaussian, AbstractIsotropicGMM, AbstractIsotropicMultiGMM
+using GaussianMixtureAlignment: IsotropicGaussian, IsotropicGMM, IsotropicMultiGMM
+using GaussianMixtureAlignment: center_of_mass
+using GaussianMixtureAlignment: local_align, gogma_align, rot_gogma_align, tiv_gogma_align, overlap, distance, tanimoto
 
-using PlotlyJS
-
+export local_align, gogma_align, tiv_gogma_align, overlap, distance, tanimoto
 export add_attributes!, attributes
-export MolGMM, FeatureMolGMM, gmm_overlap, gmm_distance
+export AtomGaussian, MolGMM, PharmacophoreGMM
 export vdwradii, vdwradii!
 export partialcharges, partialcharges!
 export pharmfeatures, pharmfeatures!
-export local_align_gmms
-export inertial_transforms, rocs_align_gmms
-export gogmaGMM, gogma_align_gmms, tiv_gogma_align_gmms
-export drawMolGMM, drawMolGMMs, drawmol, drawFeatureMolGMMs, plotdrawing
+export inertial_transforms, rocs_align
+export affinetransform
 
 include("utils.jl")
 include("gmms/gmms.jl")
+include("transformation.jl")
 include("radius.jl")
 include("partialcharge.jl")
 include("pharmfeatures.jl")
 include("gmms/pharmacophores.jl")
-include("gmms/distance.jl")
-include("gmms/align.jl")
-include("gmms/rocsalign.jl")
-include("gmms/gogma.jl")
-include("draw.jl")
+
+using Requires
+
+function __init__()
+    @require PlotlyJS="f0f68f2c-4968-5e81-91da-67840de0976a" include("draw.jl")
+end
+
 end
