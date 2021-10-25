@@ -1,6 +1,6 @@
 # MolecularGaussians.jl
 
-Alignmnent and comparison of small molecules read from .sdf files represented as Gaussian Mixture Models. 
+Alignment and comparison of small molecules read from .sdf files represented as Gaussian Mixture Models. 
 
 ## Build GMMs from molecules
 
