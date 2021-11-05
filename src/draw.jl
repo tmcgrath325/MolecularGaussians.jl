@@ -35,7 +35,7 @@ function drawatoms(atoms::AbstractVector{SDFileAtom}; colordict=atom_colors, mar
 end
 
 
-function drawbonds(nodes::AbstractVector{SDFileAtom}, edges, edgeidxs, bonds::AbstractVector{SDFileBond}, planedir=SVector{3}([0.,0.,1.]); linewidth=3, separation=0.2)
+function drawbonds(nodes::AbstractVector{SDFileAtom}, edges, edgeidxs, bonds::AbstractVector{SDFileBond}, planedir=SVector{3}([0.,0.,1.]); name = "bonds", linewidth=3, separation=0.2)
     xs, ys, zs = Float64[], Float64[], Float64[]
     for eidx in edgeidxs
         edge = edges[eidx]
@@ -65,7 +65,7 @@ function drawbonds(nodes::AbstractVector{SDFileAtom}, edges, edgeidxs, bonds::Ab
 
     return scatter3d(;x=xs, y=ys, z=zs,
                       mode="lines", line=attr(color="black", width=linewidth),
-                      howlegend=false, name="", hoverinfo="skip",
+                      showlegend=!isnothing(name), name=isnothing(name) ? "" : name, hoverinfo="skip",
                       hovertemplate="")
 end
 

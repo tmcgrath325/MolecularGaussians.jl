@@ -150,10 +150,10 @@ function PharmacophoreGMM(mol::UndirectedGraph,
                                     bonddir2 = nodeattr(mol,neighs[2].second).coords .- nodeattr(mol,idx).coords
                                     bonddir3 = nodeattr(mol,neighs[3].second).coords .- nodeattr(mol,idx).coords
                                     dirs = Vector{valtype}[-normalize(bonddir1.+bonddir2.+bonddir3)]
-                                elseif lengh(neighs) == 2
+                                elseif length(neighs) == 2
                                     # if there are 2 bonds
-                                    bonddir1 = nodeattr(mol,neighs[1].second.coords) .- nodeattr(mol,idx).coords
-                                    bonddir2 = nodeattr(mol,neighs[2].second.coords) .- nodeattr(mol,idx).coords
+                                    bonddir1 = nodeattr(mol,neighs[1].second).coords .- nodeattr(mol,idx).coords
+                                    bonddir2 = nodeattr(mol,neighs[2].second).coords .- nodeattr(mol,idx).coords
                                     axis1 = normalize(bonddir1.+bonddir2)
                                     axis2 = normalize(cross(bonddir1,bonddir2))
                                     R = AngleAxis(π,axis2...) * AngleAxis(π/2,axis1...)
