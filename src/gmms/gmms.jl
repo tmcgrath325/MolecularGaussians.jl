@@ -1,4 +1,5 @@
-import Base: eltype
+import Base: eltype, convert
+import GaussianMixtureAlignment: combine, dims, numbertype
 
 # AtomGaussian
 
@@ -28,7 +29,7 @@ function AtomGaussian(μ::AbstractArray, σ::Real, ϕ::Real, dirs::AbstractArray
 end
 
 convert(::Type{AtomGaussian{N,T}}, g::AtomGaussian) where {N,T} = AtomGaussian(SVector{N,T}(g.μ), T(g.σ), T(g.ϕ), Vector{SVector{N,T}}(g.dirs), g.node, g.nodeidx)
-
+convert(::Type{IsotropicGaussian{N,T}}, g::AtomGaussian) where {N,T} = IsotropicGaussian(SVector{N,T}(g.μ), T(g.σ), T(g.ϕ), Vector{SVector{N,T}}(g.dirs))
 
 # MolGMM
 
@@ -41,6 +42,31 @@ struct MolGMM{N,T<:Real} <: AbstractIsotropicGMM{N,T}
 end
 
 eltype(::Type{MolGMM{N,T}}) where {N,T} = AtomGaussian{N,T}
+
+convert(::Type{MolGMM{N,T}}, m::MolGMM) where {N,T} = MolGMM([convert(AtomGaussian{N,T},g) for g in m.gaussians], m.graph, m.nodes, m.σfun, m.ϕfun)
+convert(::Type{IsotropicGMM{N,T}}, m::MolGMM) where {N,T} = IsotropicGMM([convert(IsotropicGaussian{N,T},g) for g in m.gaussians])
+
+function combine(molgmm1::MolGMM, molgmm2::MolGMM)
+    if dims(molgmm1) != dims(molgmm2)
+        throw(ArgumentError("GMMs must have the same dimensionality"))
+    end
+    if molgmm1.σfun != molgmm2.σfun
+        throw(ArgumentError("GMMs must have the same σfun"))
+    end
+    if molgmm1.ϕfun != molgmm2.ϕfun
+        throw(ArgumentError("GMMs must have the same ϕfun"))
+    end
+    t = promote_type(eltype(molgmm2), eltype(molgmm2))
+    gaussians = t[vcat(molgmm1.gaussians, molgmm2.gaussians)...]
+
+    graph = deepcopy(molgmm1.graph)
+    disjointunion!(graph, molgmm2.graph)
+
+    nodes = Set(molgmm1.nodes ∪ (molgmm2.nodes.+length(nodeattrs(molgmm1.graph))))
+
+    return MolGMM(gaussians, graph, nodes, molgmm1.σfun, molgmm2.ϕfun)
+end
+
 
 """
     model = MolGMM(mol, σfun=ones, ϕfun=ones, nodes=nodeset(mol))
@@ -69,17 +95,73 @@ end
 
 MolGMM(submol::SubgraphView; kwargs...) = MolGMM(submol.graph, nodeset(submol); kwargs...)
 
+
 struct PharmacophoreGMM{N,T<:Real,K} <: AbstractIsotropicMultiGMM{N,T,K}
     gmms::Dict{K, IsotropicGMM{N,T}}
     graph::Union{UndirectedGraph,SubgraphView}
     nodes::Set{Int}
     σfun::Function
     ϕfun::Function
-    features::Vector{K}
+    featuretypes::Vector{K}
+    features::Dict{K,Vector{Set{Int}}}
     directional::Bool
 end
 
 eltype(::Type{PharmacophoreGMM{N,T,K}}) where {N,T,K} = Pair{K, IsotropicGMM{N,T}}
+
+convert(::Type{MolGMM{N,T}}, m::MolGMM) where {N,T} = MolGMM([convert(AtomGaussian{N,T},g) for g in m.gaussians], m.graph, m.nodes, m.σfun, m.ϕfun)
+convert(::Type{IsotropicGMM{N,T}}, m::MolGMM) where {N,T} = IsotropicGMM([convert(IsotropicGaussian{N,T},g) for g in m.gaussians])
+
+function combine(pgmm1::PharmacophoreGMM, pgmm2::PharmacophoreGMM)
+    if dims(pgmm1) != dims(pgmm2)
+        throw(ArgumentError("GMMs must have the same dimensionality"))
+    end
+    if pgmm1.σfun != pgmm2.σfun
+        throw(ArgumentError("GMMs must have the same σfun"))
+    end
+    if pgmm1.ϕfun != pgmm2.ϕfun
+        throw(ArgumentError("GMMs must have the same ϕfun"))
+    end
+    if pgmm1.ϕfun != pgmm2.ϕfun
+        throw(ArgumentError("GMMs must have the same value in the `directional` field"))
+    end
+    t = IsotropicGMM{dims(pgmm1),promote_type(numbertype(pgmm1), numbertype(pgmm2))}
+    d = promote_type(typeof(pgmm1.gmms), typeof(pgmm2.gmms))
+    gmms = d()
+    xkeys, ykeys = keys(pgmm1.gmms), keys(pgmm2.gmms)
+    for key in xkeys ∪ ykeys
+        if key ∈ xkeys && key ∈ ykeys
+            push!(gmms, Pair(key, convert(t, combine(pgmm1.gmms[key], pgmm2.gmms[key]))))
+        elseif key ∈ xkeys
+            push!(gmms, Pair(key, convert(t, pgmm1.gmms[key])))
+        else
+            @show convert(t,pgmm2.gmms[key])
+            push!(gmms, Pair(key, convert(t, pgmm2.gmms[key])))
+        end
+    end
+
+    graph = deepcopy(pgmm1.graph)
+    disjointunion!(graph, pgmm2.graph)
+
+    firstlen = length(nodeattrs(pgmm1.graph))
+
+    nodes = Set(pgmm1.nodes ∪ (pgmm2.nodes.+firstlen))
+
+    featuretypes = pgmm1.featuretypes ∪ pgmm2.featuretypes
+
+    features = Dict{eltype(xkeys ∪ ykeys), Vector{Set{Int}}}()
+    for key in xkeys ∪ ykeys
+        if key ∈ xkeys && key ∈ ykeys
+            push!(features, key => vcat(pgmm1.features[key], [Set(st.+firstlen) for st in pgmm2.features[key]]))
+        elseif key ∈ xkeys
+            push!(features, key => pgmm1.features[key])
+        else
+            push!(features, key => [Set(st.+firstlen) for st in pgmm2.features[key]])
+        end
+    end
+
+    return PharmacophoreGMM(gmms, graph, nodes, pgmm1.σfun, pgmm2.ϕfun, featuretypes, features, pgmm1.directional)
+end
 
 """
     model = PharmacophoreGMM(mol, σfun=vdwvolume_sigma, ϕfun=ones, nodes=nodeset(mol), features=pubchem_features)
@@ -101,14 +183,15 @@ function PharmacophoreGMM(mol::UndirectedGraph,
                           nodes = nodeset(mol);
                           σfun = vdwvolume_sigma,
                           ϕfun = ones,
-                          features = pubchem_features,
+                          featuretypes = pubchem_features,
+                          features = pharmfeatures(mol),
                           directional = true)
     dim = length(nodeattrs(mol)[1].coords)
     valtype = eltype(nodeattrs(mol)[1].coords)
     # add a GMM for each type of feature
     gmms = Dict{Symbol,IsotropicGMM{dim,valtype}}()
-    for (key, nodesets) in pharmfeatures!(mol)
-        if key in features
+    for (key, nodesets) in features
+        if key in featuretypes
             feats = IsotropicGaussian{dim,valtype}[]
             for set in nodesets
                 # check if all atoms in the feature are represented by allowed nodes
@@ -192,7 +275,7 @@ function PharmacophoreGMM(mol::UndirectedGraph,
         end
     end
     gmms = gmms
-    return PharmacophoreGMM(gmms, mol, nodes, σfun, ϕfun, features, directional)
+    return PharmacophoreGMM(gmms, mol, nodes, σfun, ϕfun, featuretypes, features, directional)
 end
 
 PharmacophoreGMM(submol::SubgraphView; kwargs...) = PharmacophoreGMM(submol.graph, nodeset(submol); kwargs...)
