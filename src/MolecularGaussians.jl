@@ -43,6 +43,8 @@ export pharmfeatures, pharmfeatures!
 export inertial_transforms, rocs_align
 export affinetransform
 
+export conformers
+
 include("utils.jl")
 include("gmms/gmms.jl")
 include("transformation.jl")
@@ -50,6 +52,11 @@ include("radius.jl")
 include("partialcharge.jl")
 include("pharmfeatures.jl")
 include("gmms/pharmacophores.jl")
+
+include("flexalign/bondrotate.jl")
+include("flexalign/conformers.jl")
+
+include
 
 using Requires
 
