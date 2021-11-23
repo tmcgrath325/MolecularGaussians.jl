@@ -1,7 +1,7 @@
 name = "MolecularGaussians"
 uuid = "be997a16-3bf6-4821-ae3d-37ccaa1f3368"
 authors = ["Tom McGrath <tmcgrath325@gmail.com> and contributors"]
-version = "0.1.4"
+version = "0.2.0"
 
 [deps]
 CoordinateTransformations = "150eb455-5306-5404-9cee-2592286d6298"
