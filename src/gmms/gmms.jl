@@ -45,8 +45,8 @@ eltype(::Type{MolGMM{N,T}}) where {N,T} = AtomGaussian{N,T}
 """
     model = MolGMM(mol, σfun=ones, ϕfun=ones, nodes=nodeset(mol))
 
-Creates a Gaussian mixture model from a molecule or subgraph `mol`, which consists of spherical Gaussian distributions 
-with means `μ` equal to atom coordinates. 
+Creates a Gaussian mixture model from a molecule or subgraph `mol`, which consists of spherical Gaussian distributions
+with means `μ` equal to atom coordinates.
 
 Optionally, functions `σfun` and `ϕfun` can be provided, which take `mol` as input and return dictionaries mapping
 mapping node indicies to variances `σ` and scaling coefficients `ϕ`, respectively.
@@ -56,7 +56,7 @@ indexes of the molecule's graph.
 """
 function MolGMM(mol::UndirectedGraph,
                 nodes=nodeset(mol);
-                σfun = vdwvolume_sigma, 
+                σfun = vdwvolume_sigma,
                 ϕfun = ones)
     N = length(nodeattrs(mol)[1].coords)
     T = eltype(nodeattrs(mol)[1].coords)
@@ -84,10 +84,10 @@ eltype(::Type{PharmacophoreGMM{N,T,K}}) where {N,T,K} = Pair{K, IsotropicGMM{N,T
 """
     model = PharmacophoreGMM(mol, σfun=vdwvolume_sigma, ϕfun=ones, nodes=nodeset(mol), features=pubchem_features)
 
-Creates a set Gaussian mixture models from a molecule or subgraph `mol`, with each model corresponding to a 
+Creates a set Gaussian mixture models from a molecule or subgraph `mol`, with each model corresponding to a
 particular type of molecular feature (e.g. ring structures)
 
-Optionally, functions `σfun` and `ϕfun` can be provided, which take `mol` as input and return dictionaries mapping
+Optionally, functions `σfun` and `ϕfun` can be provided, which take `mol` as input and return dictionaries
 mapping node indicies to variances `σ` and scaling coefficients `ϕ`, respectively.
 
 If `nodes` is provided, the Gaussian mixture models will be constructed only from atoms corresponding to the node
@@ -124,13 +124,13 @@ function PharmacophoreGMM(mol::UndirectedGraph,
                         dirs = [n, -n]
                     # if it is a hydrogen bond donor, point outward from hydrogens
                     elseif key == :donor && directional
-                        if length(set)==1 
-                            dirs = Vector{valtype}[]   
+                        if length(set)==1
+                            dirs = Vector{valtype}[]
                             idx = collect(set)[1]
                             for (edge,neigh) in neighbors(mol,idx)
                                 if nodeattr(mol,neigh).symbol == :H
                                     push!(dirs, nodeattr(mol,neigh).coords - nodeattr(mol,idx).coords)
-                                end                                
+                                end
                             end
                         else
                             dirs = nothing
