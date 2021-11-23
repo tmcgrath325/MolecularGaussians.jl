@@ -2,8 +2,8 @@
 MolecularGaussians.jl
 ===========================
 
-MolecularGaussians.jl is a package used to align molecules and their pharmacophore features by modeling them as Gaussian mixture models. 
-It makes use of GaussianMixtureAlignment.jl to compute alignments, overlap, and distances between molecules. 
+MolecularGaussians.jl is a package used to align molecules and their pharmacophore features by modeling them as Gaussian mixture models.
+It makes use of GaussianMixtureAlignment.jl to compute alignments, overlap, and distances between molecules.
 
 REPL help
 =========
