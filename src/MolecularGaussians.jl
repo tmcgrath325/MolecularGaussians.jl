@@ -11,9 +11,6 @@ REPL help
 ? followed by an algorith or constructor name will print help to the terminal. See: \n
     \t?MolGMM \n
     \t?PharmacophoreGMM \n
-    \t?gogma_align \n
-    \t?tiv_gogma_align \n
-    \t?rocs_align \n
 """
 module MolecularGaussians
 
@@ -46,17 +43,22 @@ export affinetransform
 export conformers
 
 include("utils.jl")
-include("gmms/gmms.jl")
 include("transformation.jl")
+
 include("radius.jl")
 include("partialcharge.jl")
 include("pharmfeatures.jl")
-include("gmms/pharmacophores.jl")
 
 include("flexalign/bondrotate.jl")
 include("flexalign/conformers.jl")
 
-include
+include("gmms/atomgauss.jl")
+include("gmms/molgmm.jl")
+include("gmms/featuregauss.jl")
+include("gmms/featuregmm.jl")
+include("gmms/pharmgmm.jl")
+
+include("flexalign/coarsealign.jl")
 
 using Requires
 
