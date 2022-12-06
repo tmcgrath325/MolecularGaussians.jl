@@ -17,7 +17,7 @@ function atoms_to_feature(atoms::AbstractVector{<:AbstractIsotropicGaussian}, di
         σ = atoms[1].σ
         ϕ = atoms[1].ϕ
     else
-        μ = center_of_mass(atoms)
+        μ = centroid(atoms)
         # σ = mean([norm(μ-a.μ) + a.σ for (i,a) in enumerate(atoms)])
         σ = sum([norm(μ.-a.μ) for (i,a) in enumerate(atoms)])/length(atoms)
         ϕ = sum([a.ϕ for a in atoms])/length(atoms)
@@ -35,7 +35,7 @@ atoms_to_feature(submol::SubgraphView, dirs=nothing; kwargs...) = atoms_to_featu
 #TODO: fit single Gaussian to points sampled from sum of the features?
 function combine_features(feats::AbstractVector{<:AbstractIsotropicGaussian}, weights=[f.ϕ for f in feats])
     ϕ = sum(weights)
-    μ = center_of_mass(feats, weights)
+    μ = centroid(feats, weights)
     σ = sum([f.σ * weights[i]/ϕ for (i,f) in enumerate(feats)])
     return IsotropicGaussian(μ, σ, ϕ)
 end

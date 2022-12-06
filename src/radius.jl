@@ -23,8 +23,13 @@ function vdwradii!(mol::SubgraphView)
     return filter(pr -> pr.first ∈ nodeset(mol), pvdw)
 end
 
-const const_volume_coeff = (2/(9π))^(1/3)
 
-function vdwvolume_sigma(mol::Union{UndirectedGraph,SubgraphView}) 
+const rocs_amplitude = 2.7
+rocs_volume_amplitude(a) = rocs_amplitude
+sphere_volume_sigma(r, ϕ) = (4/(3*ϕ*√π))^(1/3) * r
+
+function vdw_volume_sigma(mol::Union{UndirectedGraph,SubgraphView}) 
     return Dict(zip(nodeset(mol),[const_volume_coeff * van_der_waals_radii[atomnumber(nodeattr(mol,idx).symbol)]^2 for idx in nodeset(mol)]))
 end
+
+vdw_volume_sigma(atom::SDFileAtom, ϕ = rocs_amplitude) = sphere_volume_sigma(vdwradius(atom), ϕ)

@@ -5,6 +5,7 @@ using MolecularGraph.Graph
 using LinearAlgebra
 using StaticArrays
 using CoordinateTransformations
+using Rotations
 using Optim
 using Test
 
@@ -48,7 +49,7 @@ end
     @test distance(mol_gmm, gonane_gmm) > 0.1
     # different transforms of a molecule have some distance
     gmm= MolGMM(mol)
-    tform = AffineMap(10*rand(6)...)
+    tform = AffineMap(RotationVec(π*rand(3)...), SVector(5*rand(3)...))
     @test distance(tform(gmm), gmm) > 0.1
     # subgraphs of a molecule have some distance
     submol = nodesubgraph(mol, collect(nodeset(mol))[1:Int(floor(end/2))])
@@ -58,26 +59,18 @@ end
 
 @testset "MolGMM and PharmacophoreGMM alignment" begin
     ## MolGMM alignment
-    mol1= sdftomol(joinpath(@__DIR__, "..", "data", "E1050_3d.sdf"))
+    mol1 = sdftomol(joinpath(@__DIR__, "..", "data", "E1050_3d.sdf"))
     mol2 = sdftomol(joinpath(@__DIR__, "..", "data", "E1103_3d.sdf"))
     molgmm1 = MolGMM(mol1)
     molgmm2 = MolGMM(mol2)
     gonane = sdftomol(joinpath(@__DIR__, "..", "data", "gonane5α.sdf"))
     # No rotation/translation when aligning a mol to itself
-    self_res = tiv_gogma_align(molgmm1, molgmm1, 0.5, 0.5; maxstagnant=1000)
-    self_tform = AffineMap(self_res.tform_params...)
-    @test norm(self_tform.translation) ≈ 0 atol=1e-6
-    @test self_tform.linear ≈ I
+    self_res = gogma_align(molgmm1, molgmm1; maxstagnant=1000)
+    @test norm(self_res.tform.translation) ≈ 0 atol=1e-6
+    @test self_res.tform.linear ≈ I
     # Do you get similar distances when performing the alignment in both directions?
-    f_ovrlp = tiv_gogma_align(molgmm1, molgmm2, 0.5, 0.5; maxstagnant=1000).upperbound
-    b_ovrlp = tiv_gogma_align(molgmm2, molgmm1, 0.5, 0.5; maxstagnant=1000).upperbound
-    @test abs(2*(f_ovrlp-b_ovrlp)/(f_ovrlp+b_ovrlp)) < 0.05     # 5% difference too forgiving?
-    # Do you get the inverse transformation when swapping molfixed and molmoving (requires more evals)?
-    # This may not be important for generating a distance matrix for many molecules
-    # f_res= tiv_gogma_align(PharmacophoreGMM(mol1), PharmacophoreGMM(mol2); maxstagnant=1000)
-    # f_tform = AffineMap(f_res.tform_params...)
-    # b_res = tiv_gogma_align(PharmacophoreGMM(mol2), PharmacophoreGMM(mol1); maxstagnant=1000)
-    # b_tform = AffineMap(b_res.tform_params...)
-    # @test (b_tform ∘ f_tform).linear ≈ I atol=0.1      
-    # @test (b_tform ∘ f_tform).tranlsation ≈ zeros(3) atol=0.1     
+    f_res = gogma_align(molgmm1, molgmm2; maxstagnant=1000)
+    b_res = gogma_align(molgmm2, molgmm1; maxstagnant=1000)
+    f_ovrlp, b_ovrlp = f_res.upperbound, b_res.upperbound
+    @test abs(2*(f_ovrlp-b_ovrlp)/(f_ovrlp+b_ovrlp)) < 0.01
 end

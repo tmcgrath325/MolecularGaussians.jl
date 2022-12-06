@@ -31,8 +31,8 @@ using GaussianMixtureAlignment
 using GaussianMixtureAlignment: AbstractGaussian, AbstractSingleGMM, AbstractMultiGMM, AbstractGMM
 using GaussianMixtureAlignment: AbstractIsotropicGaussian, AbstractIsotropicGMM, AbstractIsotropicMultiGMM
 using GaussianMixtureAlignment: IsotropicGaussian, IsotropicGMM, IsotropicMultiGMM
-using GaussianMixtureAlignment: center_of_mass
-using GaussianMixtureAlignment: local_align, gogma_align, rot_gogma_align, tiv_gogma_align, overlap, distance, tanimoto
+using GaussianMixtureAlignment: centroid
+using GaussianMixtureAlignment: local_align, rocs_align, gogma_align, rot_gogma_align, tiv_gogma_align, overlap, distance, tanimoto
 
 export local_align, gogma_align, tiv_gogma_align, overlap, distance, tanimoto
 export add_attributes!, attributes
