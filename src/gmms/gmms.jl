@@ -128,8 +128,8 @@ indexes of the molecule's graph.
 """
 function PharmacophoreGMM(mol::UndirectedGraph,
                           nodes = nodeset(mol);
-                          σfun = vdwvolume_sigma,
-                          ϕfun = ones,
+                          σfun = vdw_volume_sigma,
+                          ϕfun = rocs_volume_amplitude,
                           features = pubchem_features)
     dim = length(nodeattrs(mol)[1].coords)
     valtype = eltype(nodeattrs(mol)[1].coords)
@@ -152,6 +152,26 @@ function PharmacophoreGMM(mol::UndirectedGraph,
 end
 
 PharmacophoreGMM(submol::SubgraphView; kwargs...) = PharmacophoreGMM(submol.graph, nodeset(submol); kwargs...)
+
+function  Base.:*(R::AbstractMatrix{W}, x::PharmacophoreGMM{N,V,K,G}) where {N,V,K,G,W}
+    numtype = promote_type(V, W)
+    gmmdict = Dict{K, IsotropicGMM{N,numtype}}()
+    for (key, gmm) in x.gmms
+        push!(gmmdict, key=>R*gmm)
+    end
+    return PharmacophoreGMM{N,numtype,K,G}(gmmdict, x.graph, x.nodes, x.σfun, x.ϕfun, x.features)
+end
+
+function  Base.:+(x::PharmacophoreGMM{N,V,K,G}, T::AbstractVector{W}) where {N,V,K,G,W}
+    numtype = promote_type(V, W)
+    gmmdict = Dict{K, IsotropicGMM{N,numtype}}()
+    for  (key, gmm) in x.gmms
+        push!(gmmdict, key=>gmm+T)
+    end
+    return PharmacophoreGMM{N,numtype,K,G}(gmmdict, x.graph, x.nodes, x.σfun, x.ϕfun, x.features)
+end
+
+Base.:-(x::PharmacophoreGMM, T::AbstractVector) = x + (-T)
 
 # descriptive display
 

@@ -11,26 +11,24 @@ added to their widths.
 Geometric constraints for the feature can be specified by `dirs`. The returned feature has no
 direction by default.
 """
-function atoms_to_feature(atoms::AbstractVector{<:AbstractIsotropicGaussian}, dirs=nothing)
-    if length(atoms)==1
-        μ = atoms[1].μ
-        σ = atoms[1].σ
-        ϕ = atoms[1].ϕ
+function atoms_to_feature(mol::UndirectedGraph, nodeset; ϕfun = rocs_amplitude, σfun = vdw_volume_sigma)
+    if length(nodeset)==1
+        atom = nodeattr(mol, only(nodeset))
+        μ = atom.coords
+        σ = σfun(atom, ϕfun(atom))
+        ϕ = ϕfun(atom)
     else
-        μ = centroid(atoms)
-        # σ = mean([norm(μ-a.μ) + a.σ for (i,a) in enumerate(atoms)])
-        σ = sum([norm(μ.-a.μ) for (i,a) in enumerate(atoms)])/length(atoms)
-        ϕ = sum([a.ϕ for a in atoms])/length(atoms)
-    end
-    if isnothing(dirs)
-        dirs = typeof(μ)[]
+        atoms = [nodeattr(mol, node) for node in nodeset]
+        coordmat = hcat([a.coords for a in atoms]...)
+        atomweights = [standardweight(a)[1] for a in atoms]
+        μ = centroid(coordmat, atomweights)
+        ϕ = sum([ϕfun(a) for a in atoms])/length(atoms)
+        σ = sphere_volume_sigma((sum(x -> x^3, [vdwradius(a) for a in atoms]))^(1/3), ϕ)
     end
 
-    return IsotropicGaussian(μ, σ, ϕ, dirs)
+    return IsotropicGaussian(μ, σ, ϕ)
 end
-atoms_to_feature(gmm::AbstractSingleGMM, dirs=nothing) = atoms_to_feature(gmm.gaussians, dirs)
-atoms_to_feature(mol::UndirectedGraph, nodeset, dirs=nothing; kwargs...) = atoms_to_feature(MolGMM(nodesubgraph(mol,nodeset); kwargs...), dirs)
-atoms_to_feature(submol::SubgraphView, dirs=nothing; kwargs...) = atoms_to_feature(submol.graph, nodeset(submol), dirs; kwargs...)
+atoms_to_feature(submol::SubgraphView; kwargs...) = atoms_to_feature(submol.graph, nodeset(submol); kwargs...)
 
 #TODO: fit single Gaussian to points sampled from sum of the features?
 function combine_features(feats::AbstractVector{<:AbstractIsotropicGaussian}, weights=[f.ϕ for f in feats])
