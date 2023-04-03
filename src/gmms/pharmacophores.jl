@@ -21,7 +21,7 @@ function atoms_to_feature(mol::UndirectedGraph, nodeset; ϕfun = rocs_amplitude,
         atoms = [nodeattr(mol, node) for node in nodeset]
         coordmat = hcat([a.coords for a in atoms]...)
         atomweights = [standardweight(a)[1] for a in atoms]
-        μ = centroid(coordmat, atomweights)
+        μ = centroid(coordmat, atomweights ./ sum(atomweights))
         ϕ = sum([ϕfun(a) for a in atoms])/length(atoms)
         σ = sphere_volume_sigma((sum(x -> x^3, [vdwradius(a) for a in atoms]))^(1/3), ϕ)
     end

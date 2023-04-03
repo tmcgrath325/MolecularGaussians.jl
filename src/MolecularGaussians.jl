@@ -43,6 +43,10 @@ export pharmfeatures, pharmfeatures!
 export inertial_transforms, rocs_align
 export affinetransform
 
+using MakieCore
+using GeometryBasics
+using Colors
+
 include("utils.jl")
 include("gmms/gmms.jl")
 include("transformation.jl")
@@ -51,10 +55,6 @@ include("partialcharge.jl")
 include("pharmfeatures.jl")
 include("gmms/pharmacophores.jl")
 
-using Requires
-
-function __init__()
-    @require PlotlyJS="f0f68f2c-4968-5e81-91da-67840de0976a" include("draw.jl")
-end
+include("draw/drawmol.jl")
 
 end
