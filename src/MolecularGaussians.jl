@@ -57,6 +57,10 @@ include("partialcharge.jl")
 include("pharmfeatures.jl")
 include("gmms/pharmacophores.jl")
 
+include("flexalign/bondrotate.jl")
+include("flexalign/coarsealign.jl")
+include("flexalign/conformers.jl")
+
 include("draw/draw.jl")
 
 end
