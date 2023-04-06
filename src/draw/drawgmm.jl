@@ -9,7 +9,7 @@ const FEATURE_COLORS =
          :anion         => RGB{N0f8}(0,   0,   1  ),  # blue
          :hydrophobe    => RGB{N0f8}(0,   1,   1  ),  # cyan
          :rings         => RGB{N0f8}(1,   0.5, 1  ),  # orange
-         :aromaticrings => RGB{N0f8}(1,   0.25,0  ),  # brown
+         :aromaticring  => RGB{N0f8}(1,   0.25,0  ),  # brown
          :volume        => RGB{N0f8}(0.5, 0.5, 0.5),  # grey
     )
 
