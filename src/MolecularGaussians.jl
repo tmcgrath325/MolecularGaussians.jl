@@ -43,6 +43,8 @@ export pharmfeatures, pharmfeatures!
 export inertial_transforms, rocs_align
 export affinetransform
 
+export moldisplay, pharmacophoregmmdisplay
+
 using MakieCore
 using GeometryBasics
 using Colors
@@ -55,6 +57,6 @@ include("partialcharge.jl")
 include("pharmfeatures.jl")
 include("gmms/pharmacophores.jl")
 
-include("draw/drawmol.jl")
+include("draw/draw.jl")
 
 end
