@@ -63,4 +63,7 @@ include("flexalign/conformers.jl")
 
 include("draw/draw.jl")
 
+include("features/feature.jl")
+include("features/parsefeats.jl")
+
 end
