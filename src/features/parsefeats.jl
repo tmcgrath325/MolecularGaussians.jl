@@ -1,101 +1,94 @@
-function parse_feature_definitions(path::String = joinpath(dirname(@__FILE__), "../../data/feature_definitions.txt"))
-    atomtypes = Dict{Symbol,AtomType}()
-    featuredefs = Dict{Symbol,FeatureDef}()
-    continuing = false
-    inatom = false
-    atomname = ""
-    negater = false
-    infeature = false
-    featurename = ""
-    smarts = ""
-    family = ""
-    weights = Float64[]
-    for line in eachline(path)
-        isempty(line) && continue
-        line = strip(line)
-        first(line) == '#' && continue
-        words = split(line, ' ')
-        if inatom
-            @assert continuing
-            if last(line) == '\\'
-                smarts = smarts * substitute_atom_types(string(line[1:end-1]), atomtypes)
-            else
-                smarts = smarts * substitute_atom_types(string(line), atomtypes)
-                k = Symbol(atomname)
-                if haskey(atomtypes, k)
-                    atomtypes[k] = negater ? atomtypes[k] - smarts : atomtypes[k] + smarts
-                else
-                    push!(atomtypes, k => AtomType(smarts))
-                end
-                continuing = false
-                inatom = false
-                smarts = ""
-            end
-        elseif infeature
-            if continuing
-                if last(line) == '\\'
-                    smarts = smarts * substitute_atom_types(string(line[1:end-1]), atomtypes)
-                else
-                    smarts = smarts * substitute_atom_types(string(line), atomtypes)
-                    push!(atomtypes, Symbol(atomname) => AtomType(smarts))
-                    continuing = false
-                    smarts = ""
-                end
-            else
-                words = split(line, ' ')
-                if words[1] == "Family"
-                    family = words[2]
-                elseif words[1] == "Weights"
-                    @show words[2]
-                    weights = [parse(Float64, string(w)) for w in split(words[2], ',')]
-                elseif words[1] == "EndFeature"
-                    push!(featuredefs, Symbol(featurename) => FeatureDef(smarts, Symbol(family), weights))
-                    smarts = ""
-                    family = ""
-                    weights = Float64[]
-                    infeature = false
-                else
-                    throw(ErrorException("bad input line for feature: $(words[1])"))
-                end
-            end
+mutable struct FeatureDefParser
+    lineiter::Base.Iterators.Stateful{Base.EachLine{IOStream}}
+    line::String
+    words::Vector{String}
+    atomtypes::Dict{Symbol,AtomType}
+    features::Dict{Symbol,FeatureDef}
+    families::Dict{Symbol,Vector{Symbol}}
+    function FeatureDefParser(path::String)
+        lineiter = Iterators.Stateful(eachline(path))
+        line = ""
+        words = SubString{String}[]
+        atomtypes = Dict{Symbol,AtomType}()
+        features = Dict{Symbol,FeatureDef}()
+        families = Dict{Symbol,Vector{Symbol}}()
+        return new(lineiter, line, words, atomtypes, features, families)
+    end
+end
+
+parse_feature_definitions(path::String = joinpath(dirname(@__FILE__), "../../assets/const/BaseFeatures.fdef")) = parse_feature_definitions!(FeatureDefParser(path))
+
+function parse_feature_definitions!(parser::FeatureDefParser)
+    while(!isempty(parser.lineiter))
+        read_line!(parser)
+        featuretype = lowercase(parser.words[1])
+        if featuretype == "#" || featuretype == ""
+            continue
+        elseif featuretype == "atomtype"
+            parse_atomtype!(parser)
+        elseif featuretype == "definefeature"
+            parse_featuredef!(parser)
         else
-            words = split(line, ' ')
-            if words[1] == "AtomType" || words[1] == "Atomtype"
-                atomname = words[2]
-                if first(atomname) == '!'
-                    negater = true
-                    atomname = atomname[2:end]
-                end
-                if last(line) == '\\'
-                    smarts = smarts * substitute_atom_types(string(words[3]), atomtypes)
-                    inatom = true
-                    continuing = true
-                else
-                    k = Symbol(atomname)
-                    smarts = substitute_atom_types(string(line), atomtypes)
-                    if haskey(atomtypes, k)
-                        @show k, smarts
-                        atomtypes[k] = negater ? atomtypes[k] - smarts : atomtypes[k] + smarts
-                    else
-                        push!(atomtypes, k => AtomType(smarts))
-                    end
-                end
-            elseif words[1] == "DefineFeature"
-                featurename = words[2]
-                smarts = substitute_atom_types(string(words[3]), atomtypes)
-                infeature = true
-                if last(line) == '\\'
-                    continuing = true
-                    smarts = string(words[3][1:end-1])
-                else
-                    smarts = string(words[3])
-                end
-            else
-                throw(ErrorException("bad input line for feature: $(words[1])"))
-            end
+            throw(ErrorException("bad input line for feature: $(parser.words[1])"))
         end
     end
-    return atomtypes, featuredefs
+    return parser.atomtypes, parser.features, parser.families
+end
+
+function parse_atomtype!(parser::FeatureDefParser)
+    atomname = Symbol(parser.words[2])
+    negater = first(parser.words[2]) == '!'
+    if negater
+        atomname = Symbol(parser.words[2][2:end])
+        @assert haskey(parser.atomtypes, atomname)
+    end
+    smarts = substitute_atom_types(parser.words[3], parser.atomtypes)
+    while last(parser.line) == '\\'
+        smarts = chop(smarts)
+        read_line!(parser)
+        @assert parser.words[1] == parser.line
+        smarts = smarts * substitute_atom_types(parser.line, parser.atomtypes)
+    end
+    if haskey(parser.atomtypes, atomname)
+        parser.atomtypes[atomname] = negater ? parser.atomtypes[atomname] - smarts : parser.atomtypes[atomname] + smarts
+    else
+        push!(parser.atomtypes, atomname => AtomType(smarts))
+    end
+end
+
+function parse_featuredef!(parser::FeatureDefParser)
+    featurename = Symbol(parser.words[2])
+    family = nothing
+    weights = nothing
+    smarts = substitute_atom_types(parser.words[3], parser.atomtypes)
+    while last(parser.line) == '\\'
+        smarts = chop(smarts)
+        read_line!(parser)
+        @assert parser.words[1] == parser.line
+        smarts = smarts * substitute_atom_types(parser.line, parser.atomtypes)
+    end
+    read_line!(parser)
+    while lowercase(parser.words[1]) != "endfeature"
+        if lowercase(parser.words[1]) == "family"
+            family = Symbol(parser.words[2])
+        elseif lowercase(parser.words[1]) == "weights"
+            weights = [parse(Float64, string(w)) for w in split(parser.words[2], ',')]
+        else
+            throw(ErrorException("bad input line for feature: $(parser.words[1])"))
+        end
+        read_line!(parser)
+    end
+    push!(parser.features, featurename => FeatureDef(smarts, family, weights))
+    if haskey(parser.families, family)
+        push!(parser.families[family], featurename)
+    else
+        push!(parser.families, family => [featurename,])
+    end
+end
+
+function read_line!(parser::FeatureDefParser)
+    parser.line = popfirst!(parser.lineiter)
+    parser.words = [string(s) for s in split(strip(parser.line), ' ')]
 end
 
 is_open_brace(x) = x == '{'
@@ -107,7 +100,6 @@ function substitute_atom_types(trimmedline::String, atomtypes::Dict{Symbol,AtomT
     next_closed_brace = 0
     while !isnothing(next_open_brace)
         next_closed_brace = findnext(is_closed_brace, smarts, next_open_brace)
-        @show next_open_brace, next_closed_brace
         atomtypestr = smarts[next_open_brace+1:next_closed_brace-1]
         removelen = length(atomtypestr) + 2
         atomtypekey = Symbol(smarts[next_open_brace+1:next_closed_brace-1])

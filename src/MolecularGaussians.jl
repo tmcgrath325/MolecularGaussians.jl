@@ -43,6 +43,8 @@ export pharmfeatures, pharmfeatures!
 export inertial_transforms, rocs_align
 export affinetransform
 
+export AtomType, FeatureDef
+
 export moldisplay, pharmacophoregmmdisplay
 
 using MakieCore
