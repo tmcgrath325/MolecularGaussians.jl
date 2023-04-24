@@ -43,6 +43,8 @@ export pharmfeatures, pharmfeatures!
 export inertial_transforms, rocs_align
 export affinetransform
 
+export AtomType, FeatureDef
+
 export moldisplay, pharmacophoregmmdisplay
 
 using MakieCore
@@ -62,5 +64,8 @@ include("flexalign/coarsealign.jl")
 include("flexalign/conformers.jl")
 
 include("draw/draw.jl")
+
+include("features/feature.jl")
+include("features/parsefeats.jl")
 
 end
