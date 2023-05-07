@@ -3,6 +3,7 @@ using MolecularGraph
 using StaticArrays
 using CoordinateTransformations
 using Rotations
+using LinearAlgebra
 using Test
 
 using Graphs: induced_subgraph
@@ -45,6 +46,6 @@ end
     # Do you get similar distances when performing the alignment in both directions?
     f_res = rocs_align(molgmm1, molgmm2)
     b_res = rocs_align(molgmm2, molgmm1)
-    f_ovrlp, b_ovrlp = f_res.upperbound, b_res.upperbound
+    f_ovrlp, b_ovrlp = f_res.minimum, b_res.minimum
     @test abs(2*(f_ovrlp-b_ovrlp)/(f_ovrlp+b_ovrlp)) < 0.01
 end
