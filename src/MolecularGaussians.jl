@@ -24,8 +24,7 @@ using CoordinateTransformations
 using Rotations
 
 using MolecularGraph
-using MolecularGraph.Graph
-using MolecularGraph: atommatch, bondmatch, emaptonmap
+using Graphs
 
 using GaussianMixtureAlignment
 using GaussianMixtureAlignment: AbstractGaussian, AbstractSingleGMM, AbstractMultiGMM, AbstractGMM
@@ -35,7 +34,6 @@ using GaussianMixtureAlignment: centroid
 using GaussianMixtureAlignment: local_align, rocs_align, gogma_align, rot_gogma_align, tiv_gogma_align, overlap, distance, tanimoto
 
 export local_align, gogma_align, tiv_gogma_align, overlap, distance, tanimoto
-export add_attributes!, attributes
 export AtomGaussian, MolGMM, PharmacophoreGMM
 export vdwradii, vdwradii!
 export partialcharges, partialcharges!
@@ -52,20 +50,20 @@ using GeometryBasics
 using Colors
 
 include("utils.jl")
-include("gmms/gmms.jl")
-include("transformation.jl")
-include("radius.jl")
-include("partialcharge.jl")
-include("pharmfeatures.jl")
-include("gmms/pharmacophores.jl")
 
-include("flexalign/bondrotate.jl")
-include("flexalign/coarsealign.jl")
-include("flexalign/conformers.jl")
-
-include("draw/draw.jl")
-
-include("features/feature.jl")
+include("features/featuredef.jl")
 include("features/parsefeats.jl")
+include("features/features.jl")
+
+include("radius.jl")
+include("transformation.jl")
+
+include("gmms.jl")
+
+include("conformers/bondrotate.jl")
+include("conformers/coarsealign.jl")
+include("conformers/conformers.jl")
+
+include("draw.jl")
 
 end

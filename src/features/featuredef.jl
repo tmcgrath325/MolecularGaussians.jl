@@ -2,7 +2,6 @@ using MolecularGraph: smartstomol
 
 const TEST_MOL = MolecularGraph.sdftomol(joinpath(dirname(@__FILE__), "../../assets/data/E1050_3d.sdf"))
 
-
 struct AtomType
     smarts::String
     function AtomType(smarts::String, wrap = true)
@@ -17,6 +16,12 @@ struct FeatureDef
     function FeatureDef(smarts::String, family::Symbol, weights::Vector{Float64})
         new(smarts, family, weights)
     end
+end
+
+struct FamilyDef
+    atomtypes::Dict{Symbol, AtomType}
+    features::Dict{Symbol, FeatureDef}
+    families::Dict{Symbol, Vector{Symbol}}
 end
 
 Base.:+(x::AtomType, y::AtomType) = AtomType(x.smarts * "," * y.smarts, false)
