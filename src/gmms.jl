@@ -28,14 +28,14 @@ end
 
 convert(::Type{AtomGaussian{N,T}}, g::AtomGaussian) where {N,T} = AtomGaussian(SVector{N,T}(g.μ), T(g.σ), T(g.ϕ), g.node, g.nodeidx)
 
-function Base.:*(R::AbstractMatrix{W}, x::AtomGaussian{N,V}) where {N,V,W}
+function Base.:*(R::AbstractMatrix{W}, x::AtomGaussian{N,V,A}) where {N,V,A,W}
     numtype = promote_type(V, W)
-    return AtomGaussian{N,numtype}(R*x.μ, x.σ, x.ϕ, x.node, x.nodeidx)
+    return AtomGaussian{N,numtype,A}(R*x.μ, x.σ, x.ϕ, x.node, x.nodeidx)
 end
 
-function Base.:+(x::AtomGaussian{N,V}, T::AbstractVector{W}) where {N,V,W}
+function Base.:+(x::AtomGaussian{N,V,A}, T::AbstractVector{W}) where {N,V,A,W}
     numtype = promote_type(V, W)
-    return AtomGaussian{N,numtype}(x.μ.+T, x.σ, x.ϕ, x.node, x.nodeidx)
+    return AtomGaussian{N,numtype,A}(x.μ.+T, x.σ, x.ϕ, x.node, x.nodeidx)
 end
 
 Base.:-(x::AtomGaussian, T::AbstractVector,) = x + (-T)
