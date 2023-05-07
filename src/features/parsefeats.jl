@@ -16,7 +16,7 @@ mutable struct FeatureDefParser
     end
 end
 
-parse_feature_definitions(path::String = joinpath(dirname(@__FILE__), "../../assets/const/BaseFeatures.fdef")) = parse_feature_definitions!(FeatureDefParser(path))
+parse_feature_definitions(path::String = joinpath(dirname(@__FILE__), "../../assets/const/FeatureDefinitions.fdef")) = parse_feature_definitions!(FeatureDefParser(path))
 
 function parse_feature_definitions!(parser::FeatureDefParser)
     while(!isempty(parser.lineiter))
@@ -32,7 +32,7 @@ function parse_feature_definitions!(parser::FeatureDefParser)
             throw(ErrorException("bad input line for feature: $(parser.words[1])"))
         end
     end
-    return parser.atomtypes, parser.features, parser.families
+    return FamilyDef(parser.atomtypes, parser.features, parser.families)
 end
 
 function parse_atomtype!(parser::FeatureDefParser)
