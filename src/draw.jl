@@ -13,7 +13,8 @@ const FEATURE_COLORS = Dict(
     :Hydrophobe    => MolecularGraph.Color(0,   255, 255),  # cyan
     :Ring          => MolecularGraph.Color(255, 128, 255),  # orange
     :AromaticRing  => MolecularGraph.Color(255, 64,  0  ),  # brown
-    :Volume        => MolecularGraph.Color(128, 128, 128),  # grey
+    :Volume        => MolecularGraph.Color(200, 200, 200),  # light grey
+    :ExcludedVolume=> MolecularGraph.Color(100, 100, 100),  # dark grey
 )
 
 @recipe(MolGMMDisplay, p) do scene
@@ -28,29 +29,10 @@ const FEATURE_COLORS = Dict(
 end
 
 function pharmacophoredisplay(args...; kwargs...)
-    set_theme!(backgroundcolor = :black)
+    # set_theme!(backgroundcolor = :black)
     figaxplot = molgmmdisplay(args...; kwargs...)
     figaxplot.axis.show_axis[] = false
     return figaxplot
-end
-
-function plot!(md::MolGMMDisplay{<:NTuple{<:Any,<:MolGMM{N,T,K}}}) where {N,T,K}
-    gmms = [md[i][] for i=1:length(md)]
-    len = length(gmms)
-    disp = md[:display][]
-    color = md[:color][]
-    palette = md[:palette][]
-    for (i,gmm) in enumerate(gmms)
-        col = isnothing(color) ? palette[(i-1) % len + 1] : color
-        col  = isa(col, Color) ? colortype(col) : col
-        gmmdisplay!(md, gmm; display=disp, color=col)
-    end
-    if md[:show_mol][]
-        molfun = md[:mol_fun][]
-        for gmm in gmms
-            molfun(md, gmm.graph)
-        end
-    end
 end
 
 function plot!(md::MolGMMDisplay{<:NTuple{<:Any,<:PharmacophoreGMM{N,T,K}}}) where {N,T,K}

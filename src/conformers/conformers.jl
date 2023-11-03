@@ -46,3 +46,45 @@ function conformers(mol::SDFMolGraph; step=π/3, lower=-π, upper=π*(1-eps(Floa
     end
     return confs
 end
+
+
+function align_conformers(xconfs::AbstractVector{<:G}, yconfs::AbstractVector{<:G}; alignfun = local_align, kwargs...) where G<:PharmacophoreGMM
+    bestx = xconfs[1]
+    besty = yconfs[1]
+    bestxidx = 1
+    bestyidx = 1
+    bestolap = Inf
+    tform = identity
+    for (i,yconf) in enumerate(yconfs)
+        x, ctform, xidx, min = align_conformers(xconfs, yconf, alignfun=alignfun, kwargs...)
+        if min < bestolap
+            bestx = x
+            besty = yconf
+            bestxidx = xidx
+            bestyidx = i
+            bestolap = min
+            tform = ctform
+        end
+    end
+    return bestx, besty, tform, bestxidx, bestyidx, bestolap
+end
+
+function align_conformers(confs::AbstractVector{<:G}, template::L; alignfun = local_align, kwargs...) where {G<:PharmacophoreGMM, L<:AbstractIsotropicMultiGMM}
+    bestconf = confs[1]
+    bestidx = 1
+    bestolap = Inf
+    tform = identity
+    for (i,conf) in enumerate(confs)
+        res = alignfun(conf, template)
+        min = typeof(alignfun) == typeof(rocs_align) ? res.minimum : 
+              typeof(alignfun) == typeof(local_align) ? res[1] : 
+              res.upperbound
+        if min < bestolap
+            bestconf = conf
+            bestidx = i
+            bestolap = min
+            tform = typeof(alignfun) == typeof(local_align) ? res[2] : res.tform_params
+        end
+    end
+    return bestconf, tform, bestidx, bestolap
+end

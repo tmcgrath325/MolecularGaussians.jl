@@ -26,6 +26,8 @@ using Rotations
 using MolecularGraph
 using Graphs
 
+using Optim
+
 using GaussianMixtureAlignment
 using GaussianMixtureAlignment: AbstractGaussian, AbstractSingleGMM, AbstractMultiGMM, AbstractGMM
 using GaussianMixtureAlignment: AbstractIsotropicGaussian, AbstractIsotropicGMM, AbstractIsotropicMultiGMM
@@ -61,8 +63,10 @@ include("transformation.jl")
 include("gmms.jl")
 
 include("conformers/bondrotate.jl")
-include("conformers/coarsealign.jl")
 include("conformers/conformers.jl")
+
+include("pharmgen/commonfeatures.jl")
+include("pharmgen/opt.jl")
 
 include("draw.jl")
 

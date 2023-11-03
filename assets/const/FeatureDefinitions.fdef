@@ -1,4 +1,9 @@
-DefineFeature AnyAtom [*]
+# DefineFeature AnyAtom [*]
+#  Family Volume
+#  Weights 1.0
+# EndFeature
+
+DefineFeature HeavyAtom [!#1]
   Family Volume
   Weights 1.0
 EndFeature
@@ -27,14 +32,14 @@ DefineFeature HydrogenAcceptor [{Hydroxyl},{ChalcAcceptor},{NAcceptor},{HalogenA
   Weights 1.0
 EndFeature
 
-DefineFeature Sulfate [#16X4](=[OX1])(=[OX1])([OX2H,OX1H0-])[OX2][#6]),$([#16X4+2]([OX1-])([OX1-])([OX2H,OX1H0-])[OX2][#6]
+DefineFeature Sulfate [#16X4](=[OX1])(=[OX1])([OX2H,OX1H0-])[OX2]),$([#16X4+2]([OX1-])([OX1-])([OX2H,OX1H0-])[OX2]
   Family NegIonizable
-  Weights 1.0,1.0,1.0,1.0,1.0,1.0
+  Weights 1.0,1.0,1.0,1.0,1.0
 EndFeature
 
-DefineFeature Phosphate [#15X4](=[OX1])(=[OX1])([OX2H,OX1H0-])[OX2][#6]),$([#16X4+2]([OX1-])([OX1-])([OX2H,OX1H0-])[OX2][#6]
+DefineFeature Phosphate [#15X4](=[OX1])(=[OX1])([OX2H,OX1H0-])[OX2]),$([#16X4+2]([OX1-])([OX1-])([OX2H,OX1H0-])[OX2]
   Family NegIonizable
-  Weights 1.0,1.0,1.0,1.0,1.0,1.0
+  Weights 1.0,1.0,1.0,1.0,1.0
 EndFeature
 
 DefineFeature CarboxylicAcid [CX3](=O)[OX1H0-,OX2H1]
@@ -95,9 +100,8 @@ EndFeature
 
 AtomType Carbon_Polar [#6;$([#6]~[#7,#8,#9])]
 AtomType Carbon_NonPolar [#6;+0;!{Carbon_Polar}]
-AtomType Hphobe [c,s,S&H0&v2,Br,I,{Carbon_NonPolar}]
 
-DefineFeature HydrophobicAtom [{Hphobe}]
+DefineFeature HydrophobicAtom [{Carbon_NonPolar}]
   Family Hydrophobe
   Weights 1.0
 EndFeature
