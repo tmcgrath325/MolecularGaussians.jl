@@ -17,8 +17,12 @@ Rotations = "6038ab10-8711-5258-84ad-4b1120ba62dc"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 
 [compat]
+Colors = "0.12"
 CoordinateTransformations = "0.6"
 GaussianMixtureAlignment = "0.1.7"
+Graphs = "1.8"
+GeometryBasics = "0.4"
+MakieCore = "0.6"
 MolecularGraph = "0.14"
 Optim = "1.7"
 Rotations = "1.4"
