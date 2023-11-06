@@ -42,8 +42,10 @@ export partialcharges, partialcharges!
 export pharmfeatures, pharmfeatures!
 export inertial_transforms, rocs_align
 export affinetransform
+export distance
 
 export AtomType, FeatureDef
+export parse_feature_definitions, feature_maps
 
 export moldisplay, pharmacophoregmmdisplay
 
@@ -64,9 +66,6 @@ include("gmms.jl")
 
 include("conformers/bondrotate.jl")
 include("conformers/conformers.jl")
-
-include("pharmgen/commonfeatures.jl")
-include("pharmgen/opt.jl")
 
 include("draw.jl")
 
