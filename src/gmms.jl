@@ -30,7 +30,7 @@ indexes of the molecule's graph.
 """
 function PharmacophoreGMM(mol::SDFMolGraph,
                           σfun = vdw_volume_sigma,
-                          ϕfun = rocs_volume_amplitude;
+                          ϕfun = a -> one(typeof(MolecularGraph.atom_radius(a)));
                           featuremaps::Dict{K,Vector{Vector{Int}}} = Dict{Symbol,Vector{Vector{Int}}}(:Volume => [[i] for i in heavy_atom_idxs(mol)])) where K
     N = length(props(mol,1).coords)
     T = eltype(props(mol,1).coords)
@@ -66,7 +66,13 @@ end
 
 Base.:-(x::PharmacophoreGMM, T::AbstractVector) = x + (-T)
 
-tformgraph(x::PharmacophoreGMM, tform) = PharmacophoreGMM(x.gmms, tform(x.graph), x.σfun, x.ϕfun, x.featuremaps)
+function transform(pgmm::PharmacophoreGMM{N,T,K,G}, tform::AffineMap) where {N,T,K,G}
+    newgmms = Dict{K, IsotropicGMM{N,T}}()
+    for (key, gmm) in pgmm.gmms
+        push!(newgmms, key => tform(gmm))
+    end
+    return PharmacophoreGMM{N,T,K,G}(newgmms, tform(pgmm.graph), pgmm.σfun, pgmm.ϕfun, pgmm.featuremaps)
+end
 
 # descriptive display
 
