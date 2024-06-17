@@ -1,7 +1,7 @@
 name = "MolecularGaussians"
 uuid = "be997a16-3bf6-4821-ae3d-37ccaa1f3368"
 authors = ["Tom McGrath <tmcgrath325@gmail.com> and contributors"]
-version = "0.3.2"
+version = "0.3.3"
 
 [deps]
 Colors = "5ae59095-9a9b-59fe-a467-6f913c188581"
@@ -19,14 +19,14 @@ StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 [compat]
 Colors = "0.12"
 CoordinateTransformations = "0.6"
-GaussianMixtureAlignment = "v0.2"
+GaussianMixtureAlignment = "0.2"
 GeometryBasics = "0.4"
 Graphs = "1.8"
 LinearAlgebra = "1.7"
-MakieCore = "0.6"
-MolecularGraph = "v0.14, 0.15, 0.16"
+MakieCore = "0.6, 0.7, 0.8"
+MolecularGraph = "0.14, 0.15, 0.16"
 Optim = "1.7"
-Rotations = "1.7"
+Rotations = "1.4, 1.5, 1.6, 1.7"
 StaticArrays = "1.5"
 julia = "1.10"
 
