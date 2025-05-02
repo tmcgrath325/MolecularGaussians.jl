@@ -9,7 +9,7 @@ added to their widths.
 Geometric constraints for the feature can be specified by `dirs`. The returned feature has no
 direction by default.
 """
-function atoms_to_feature(mol::SDFMolGraph, nodeset; ϕfun = rocs_amplitude, σfun = vdw_volume_sigma)
+function atoms_to_feature(mol::SDFMolGraph, nodeset, label; ϕfun = rocs_amplitude, σfun = vdw_volume_sigma)
     if length(nodeset)==1
         atom = props(mol, only(nodeset))
         μ = atom.coords
@@ -22,7 +22,7 @@ function atoms_to_feature(mol::SDFMolGraph, nodeset; ϕfun = rocs_amplitude, σf
         ϕ = sum([ϕfun(a) for a in atoms])/length(atoms)
         σ = sphere_volume_sigma((sum(x -> x^3, [atom_radius(a) for a in atoms]))^(1/3), ϕ)
     end
-    return IsotropicGaussian(μ, σ, ϕ)
+    return LabeledIsotropicGaussian(μ, σ, ϕ, label)
 end
 
 function feature_maps(mol::SimpleMolGraph, fdefs::Vector{FeatureDef})

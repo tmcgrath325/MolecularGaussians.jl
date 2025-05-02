@@ -2,8 +2,8 @@ import Base: eltype
 
 # PharmacophoreGMM
 
-struct PharmacophoreGMM{N,T<:Real,K,G<:SimpleMolGraph} <: AbstractIsotropicMultiGMM{N,T,K}
-    gmms::Dict{K, IsotropicGMM{N,T}}
+struct PharmacophoreGMM{N,T<:Real,K,G<:SimpleMolGraph} <: GaussianMixtureAlignment.AbstractLabeledIsotropicGMM{N,T,K}
+    gaussians::Vector{LabeledIsotropicGaussian{N,T,K}}
     graph::G
     σfun::Function
     ϕfun::Function
@@ -35,50 +35,38 @@ function PharmacophoreGMM(mol::SDFMolGraph,
     N = length(props(mol,1).coords)
     T = eltype(props(mol,1).coords)
     # add a GMM for each type of feature
-    gmms = Dict{Symbol,IsotropicGMM{N,T}}()
+    gaussians = Vector{LabeledIsotropicGaussian{N,T,Symbol}}()
     for (feature, nodesets) in featuremaps
-        feats = IsotropicGaussian{N,T}[]
         for set in nodesets
-            push!(feats, atoms_to_feature(mol, set; σfun=σfun, ϕfun=ϕfun))
+            push!(gaussians, atoms_to_feature(mol, set, feature; σfun=σfun, ϕfun=ϕfun))
         end
-        push!(gmms, Pair(feature, IsotropicGMM(feats)))
     end
-    return PharmacophoreGMM(gmms, mol, σfun, ϕfun, featuremaps)
+    return PharmacophoreGMM(gaussians, mol, σfun, ϕfun, featuremaps)
 end
 
 function  Base.:*(R::AbstractMatrix{W}, x::PharmacophoreGMM{N,V,K,G}) where {N,V,K,G,W}
     numtype = promote_type(V, W)
-    gmmdict = Dict{K, IsotropicGMM{N,numtype}}()
-    for (key, gmm) in x.gmms
-        push!(gmmdict, key=>R*gmm)
-    end
-    return PharmacophoreGMM{N,numtype,K,G}(gmmdict, x.graph, x.σfun, x.ϕfun, x.featuremaps)
+    return PharmacophoreGMM{N,numtype,K,G}([R*g for g in x.gaussians], x.graph, x.σfun, x.ϕfun, x.featuremaps)
 end
 
 function  Base.:+(x::PharmacophoreGMM{N,V,K,G}, T::AbstractVector{W}) where {N,V,K,G,W}
     numtype = promote_type(V, W)
-    gmmdict = Dict{K, IsotropicGMM{N,numtype}}()
-    for  (key, gmm) in x.gmms
-        push!(gmmdict, key=>gmm+T)
-    end
-    return PharmacophoreGMM{N,numtype,K,G}(gmmdict, x.graph, x.σfun, x.ϕfun, x.featuremaps)
+    return PharmacophoreGMM{N,numtype,K,G}([g+T for g in x.gaussians], x.graph, x.σfun, x.ϕfun, x.featuremaps)
 end
 
 Base.:-(x::PharmacophoreGMM, T::AbstractVector) = x + (-T)
 
-function transform(pgmm::PharmacophoreGMM{N,T,K,G}, tform::AffineMap) where {N,T,K,G}
-    newgmms = Dict{K, IsotropicGMM{N,T}}()
-    for (key, gmm) in pgmm.gmms
-        push!(newgmms, key => tform(gmm))
-    end
-    return PharmacophoreGMM{N,T,K,G}(newgmms, tform(pgmm.graph), pgmm.σfun, pgmm.ϕfun, pgmm.featuremaps)
-end
+# function transform(pgmm::PharmacophoreGMM{N,T,K,G}, tform::AffineMap) where {N,T,K,G}
+#     return PharmacophoreGMM{N,T,K,G}([tform(g) for g in pgmm.gaussians], tform(pgmm.graph), pgmm.σfun, pgmm.ϕfun, pgmm.featuremaps)
+# end
+
+feature_labels(x::PharmacophoreGMM) = unique([g.label for g in x.gaussians])
 
 # descriptive display
 
 Base.show(io::IO, pgmm::PharmacophoreGMM) = println(io,
     summary(pgmm),
     " from molecule with formula $(molecular_formula(pgmm.graph))",
-    " with $(sum(length(gmm.second) for gmm in pgmm)) Gaussians in $(length(pgmm)) GMMs with labels:\n",
-    "$([label for (label, gmm) in pgmm.gmms])"
+    " with $(length(pgmm)) Gaussians with labels:\n",
+    "$([label for label in feature_labels(pgmm)])"
 )
