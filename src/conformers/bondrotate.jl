@@ -20,8 +20,8 @@ angleaxis_rotate_graph(graph::SDFMolGraph, angle, axis, origin,
 
 struct RotatableSubgraph{T}
     edge::Graphs.SimpleEdge{Int}
-    proximalidx::Int
-    distalidx::Int
+    parentnodeidx::Int
+    childnodeidx::Int
     vlist::Vector{Int}
     axis::SVector{3,T}
     origin::SVector{3,T}
@@ -39,17 +39,17 @@ function RotatableSubgraph(graph::SDFMolGraph, edge::Graphs.SimpleEdge)
     # identify which side of the edge will be rotated (the side with fewer nodes)
     sort!(nodesets; by=length)
     reverseedge = edge.src ∈ nodesets[2]
-    proximalidx = reverseedge ? edge.dst : edge.src
-    distalidx = reverseedge ? edge.src : edge.dst
+    parentnodeidx = reverseedge ? edge.src : edge.dst
+    childnodeidx = reverseedge ? edge.dst : edge.src
     
-    proximalcoords = get_prop(graph, proximalidx, :coords)
-    distalcoords = get_prop(graph, distalidx, :coords)
+    parentnodecoords = get_prop(graph, parentnodeidx, :coords)
+    childnodecoords = get_prop(graph, childnodeidx, :coords)
 
-    T = eltype(distalcoords)
-    axis = SVector{3,T}(distalcoords .- proximalcoords)
-    origin = SVector{3,T}(distalcoords)
+    T = eltype(childnodecoords)
+    axis = SVector{3,T}(childnodecoords .- parentnodecoords)
+    origin = SVector{3,T}(childnodecoords)
     subgraph, vlist = induced_subgraph(newgraph, nodesets[1])
-    return RotatableSubgraph(edge, proximalidx, distalidx, vlist, axis, origin)
+    return RotatableSubgraph(edge, parentnodeidx, childnodeidx, vlist, axis, origin)
 end
 
 function rotate_edge!(graph::SDFMolGraph, edge, angle)
@@ -70,3 +70,21 @@ function rotate_edges!(graph::SDFMolGraph, edgeidxs, angles)
 end
 
 rotate_edges(graph, edgeidxs, angles) = rotate_edges!(deepcopy(graph), edgeidxs, angles)
+
+
+function bondrotate(pgmm::PharmacophoreGMM{N,T,K}, angle, axis, origin, rotatedfeatures, rotatedbonds) where {N,T,K}
+    tform = angleaxis_rotation(angle, axis, origin)
+    newgaussians = [i ∈ rotatedfeatures ? tform(g) : g for (i,g) in enumerate(pgmm.gaussians)]
+    newaxes = [i ∈ rotatedbonds ? tform(a) : a for (i,a) in enumerate(pgmm.axes)]
+    neworigins = [i ∈ rotatedbonds ? tform(o) : o for (i,o) in enumerate(pgmm.origins)]
+    return PharmacophoreGMM{N,T,K}(newgaussians, newaxes, neworigins, copy(pgmm.bondtogaussians), copy(pgmm.bondtobonds))
+end
+
+bondrotate(pgmm::PharmacophoreGMM, angle, bondidx::Int) = bondrotate(pgmm, angle, pgmm.axes[bondidx], pgmm.origins[bondidx], pgmm.bondtogaussians[bondidx], pgmm.bondtobonds[bondidx])
+function bondrotate(pgmm::PharmacophoreGMM, angles, bondidxs::AbstractVector{Int})
+    newpgmm = bondrotate(pgmm, first(angles), first(bondidxs))
+    for (angle, bondidx) in zip(angles[2:end],bondidxs[2:end])
+        newpgmm = bondrotate(newpgmm, angle, bondidx)
+    end
+    return newpgmm
+end
