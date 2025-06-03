@@ -1,7 +1,7 @@
-using MolecularGraph: atomnumber
+using MolecularGraph: atom_number
 import MolecularGraph: atom_radius
 
-MolecularGraph.atom_radius(a::SDFAtom) = MolecularGraph.ATOM_VANDERWAALS_RADII[atomnumber(a.symbol)]
+MolecularGraph.atom_radius(a::SDFAtom) = MolecularGraph.ATOM_VANDERWAALS_RADII[atom_number(a.symbol)]
 
 const rocs_amplitude = 2.7
 

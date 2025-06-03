@@ -1,19 +1,20 @@
 import MakieCore: plot!
 using MakieCore: @recipe, Theme
 using GaussianMixtureAlignment: gmmdisplay, DEFAULT_COLORS
-using MolecularGraph: stick!, colortype, Color
+using MolecularGraph: stick!
+using Colors: coloralpha, RGB, N0f8
 
-const FEATURE_COLORS = Dict(
-    :Donor         => MolecularGraph.Color(255, 0,   255),  # magenta
-    :Acceptor      => MolecularGraph.Color(0,   255, 0  ),  # green
-    :PosIonizable  => MolecularGraph.Color(255, 0,   0  ),  # red
-    :NegIonizable  => MolecularGraph.Color(0,   0,   255),  # blue
-    :Hydrophobe    => MolecularGraph.Color(0,   255, 255),  # cyan
-    :Ring          => MolecularGraph.Color(255, 128, 255),  # orange
-    :AromaticRing  => MolecularGraph.Color(255, 64,  0  ),  # brown
-    :Volume        => MolecularGraph.Color(200, 200, 200),  # light grey
-    :ExcludedVolume=> MolecularGraph.Color(100, 100, 100),  # dark grey
-)
+const FEATURE_COLORS = Dict(k => RGB{N0f8}((v ./ 255)...) for (k, v) in Dict(
+    :Donor         => (255, 0,   255),  # magenta
+    :Acceptor      => (0,   255, 0  ),  # green
+    :PosIonizable  => (255, 0,   0  ),  # red
+    :NegIonizable  => (0,   0,   255),  # blue
+    :Hydrophobe    => (0,   255, 255),  # cyan
+    :Ring          => (255, 128, 255),  # orange
+    :AromaticRing  => (255, 64,  0  ),  # brown
+    :Volume        => (200, 200, 200),  # light grey
+    :ExcludedVolume=> (100, 100, 100),  # dark grey
+))
 
 @recipe(MolGMMDisplay, p) do scene
     Theme(
@@ -46,7 +47,7 @@ function plot!(md::MolGMMDisplay{<:NTuple{<:Any,<:PharmacophoreGMM{N,T,K}}}) whe
     len = length(allkeys)
     for (i,k) in enumerate(allkeys)
         col = isnothing(color) ? (haskey(colors, k) ? colors[k] : palette[(i-1) % len + 1]) : color
-        col  = isa(col, Color) ? colortype(col) : col
+        col  = isa(col, Color) ? coloralpha(col) : col
         for mgmm in mgmms
             haskey(mgmm.gmms, k) && gmmdisplay!(md, mgmm.gmms[k]; display=disp, color=col, palette=palette)
         end
