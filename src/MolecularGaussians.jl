@@ -9,7 +9,6 @@ REPL help
 =========
 
 ? followed by an algorith or constructor name will print help to the terminal. See: \n
-    \t?MolGMM \n
     \t?PharmacophoreGMM \n
     \t?gogma_align \n
     \t?tiv_gogma_align \n
@@ -24,6 +23,7 @@ using CoordinateTransformations
 using Rotations
 
 using MolecularGraph
+using MolecularGraph: SimpleMolGraph
 using Graphs
 
 using Optim
@@ -35,17 +35,14 @@ using GaussianMixtureAlignment: IsotropicGaussian, IsotropicGMM, IsotropicMultiG
 using GaussianMixtureAlignment: centroid
 using GaussianMixtureAlignment: local_align, rocs_align, gogma_align, rot_gogma_align, tiv_gogma_align, overlap, distance, tanimoto
 
-export local_align, gogma_align, tiv_gogma_align, overlap, distance, tanimoto
-export AtomGaussian, MolGMM, PharmacophoreGMM
-export vdwradii, vdwradii!
-export partialcharges, partialcharges!
-export pharmfeatures, pharmfeatures!
-export inertial_transforms, rocs_align
-export affinetransform
-export distance
+export PharmacophoreGMM
 
 export AtomType, FeatureDef
 export parse_feature_definitions, feature_maps
+
+export rotatablesubgraphs, rotatablebonds, conformers
+export rotate_edge, rotate_edge!, rotate_edges, rotate_edges!
+export nodeset
 
 export moldisplay, pharmacophoregmmdisplay
 

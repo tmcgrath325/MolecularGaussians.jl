@@ -1,15 +1,11 @@
 """
-    feat = atoms_to_feature(atoms, dirs=nothing)
+    feat = atoms_to_feature(mol, nodeset; ϕfun = rocs_amplitude, σfun = vdw_volume_sigma)
 
-Combines Gaussian distributions specified by `atoms` to create a feature repressented by a 
-single Gaussian. The feature is centered at the center of mass of the distributions, and the
-width `σ` of the feature is the average of the distance of individual features from the center 
-added to their widths.
-
-Geometric constraints for the feature can be specified by `dirs`. The returned feature has no
-direction by default.
+Combines Gaussian distributions specified from the atoms in `mol` to create a feature repressented by a
+single Gaussian. The feature is centered at the volumetric centroid of the atoms, and the
+width `σ` of the feature preserves the total volume of the atoms
 """
-function atoms_to_feature(mol::SDFMolGraph, nodeset, label; ϕfun = rocs_amplitude, σfun = vdw_volume_sigma)
+function atoms_to_feature(mol::SDFMolGraph, nodeset; ϕfun = rocs_amplitude, σfun = vdw_volume_sigma)
     if length(nodeset)==1
         atom = props(mol, only(nodeset))
         μ = atom.coords
@@ -20,9 +16,9 @@ function atoms_to_feature(mol::SDFMolGraph, nodeset, label; ϕfun = rocs_amplitu
         coordmat = hcat([a.coords for a in atoms]...)
         μ = centroid(coordmat, fill(1/length(atoms), length(atoms)))
         ϕ = sum([ϕfun(a) for a in atoms])/length(atoms)
-        σ = sphere_volume_sigma((sum(x -> x^3, [atom_radius(a) for a in atoms]))^(1/3), ϕ)
+        σ = sphere_volume_sigma(sum(x -> sigma_to_radius(σfun(x), ϕ)^3, atoms)^(1/3), ϕ)
     end
-    return LabeledIsotropicGaussian(μ, σ, ϕ, label)
+    return IsotropicGaussian(μ, σ, ϕ)
 end
 
 function feature_maps(mol::SimpleMolGraph, fdefs::Vector{FeatureDef})

@@ -7,7 +7,7 @@ using LinearAlgebra
 using Test
 
 using Graphs: induced_subgraph
-using GaussianMixtureAlignment: distance
+using GaussianMixtureAlignment: rocs_align, distance
 using MolecularGaussians: nodeset
 
 const MG = MolecularGaussians
@@ -33,8 +33,17 @@ const FAMILY_DEFS = parse_feature_definitions()
     tform = AffineMap(RotationVec(π*rand(3)...), SVector(5*rand(3)...))
     @test distance(tform(gmm), gmm) > 0.1
     # subgraphs of a molecule have some distance
-    submol, _ = induced_subgraph(mol, collect(nodeset(mol))[1:Int(floor(end/2))])
-    sub_gmm = PharmacophoreGMM(submol)
+    sgs = rotatablesubgraphs(mol)
+    subgraph_idxs = nodeset(mol)
+    for sg in sgs
+        for i in sg.vlist
+            if i ∈ subgraph_idxs
+                delete!(subgraph_idxs, i)
+            end
+        end
+    end
+    submol, _ = induced_subgraph(mol, collect(subgraph_idxs))
+    sub_gmm = PharmacophoreGMM(submol; rigid = true)
     @test distance(sub_gmm, gmm) > 0.1
 end
 

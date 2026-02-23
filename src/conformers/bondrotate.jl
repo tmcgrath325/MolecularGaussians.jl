@@ -1,4 +1,4 @@
-import CoordinateTransformations 
+import CoordinateTransformations
 import LinearAlgebra: I
 
 ## rotate about a particular axis, centered at a specified origin
@@ -28,6 +28,9 @@ struct RotatableSubgraph{T}
 end
 
 function RotatableSubgraph(graph::SDFMolGraph, edge::Graphs.SimpleEdge)
+    if length(connected_components(graph)) > 1
+        throw(ArgumentError("The original graph is not fully connected."))
+    end
     # generate a subgraph after removing the specified edge, and obtain the nodes in each connected component
     newgraph = deepcopy(graph)
     Graphs.rem_edge!(newgraph, edge)
@@ -41,7 +44,7 @@ function RotatableSubgraph(graph::SDFMolGraph, edge::Graphs.SimpleEdge)
     reverseedge = edge.src ∈ nodesets[2]
     parentnodeidx = reverseedge ? edge.src : edge.dst
     childnodeidx = reverseedge ? edge.dst : edge.src
-    
+
     parentnodecoords = get_prop(graph, parentnodeidx, :coords)
     childnodecoords = get_prop(graph, childnodeidx, :coords)
 
@@ -77,10 +80,10 @@ function bondrotate(pgmm::PharmacophoreGMM{N,T,K}, angle, axis, origin, rotatedf
     newgaussians = [i ∈ rotatedfeatures ? tform(g) : g for (i,g) in enumerate(pgmm.gaussians)]
     newaxes = [i ∈ rotatedbonds ? tform(a) : a for (i,a) in enumerate(pgmm.axes)]
     neworigins = [i ∈ rotatedbonds ? tform(o) : o for (i,o) in enumerate(pgmm.origins)]
-    return PharmacophoreGMM{N,T,K}(newgaussians, newaxes, neworigins, copy(pgmm.bondtogaussians), copy(pgmm.bondtobonds))
+    return PharmacophoreGMM{N,T,K}(newgaussians, copy(pgmm.labels), newaxes, neworigins, copy(pgmm.bondtofeatures), copy(pgmm.bondtobonds))
 end
 
-bondrotate(pgmm::PharmacophoreGMM, angle, bondidx::Int) = bondrotate(pgmm, angle, pgmm.axes[bondidx], pgmm.origins[bondidx], pgmm.bondtogaussians[bondidx], pgmm.bondtobonds[bondidx])
+bondrotate(pgmm::PharmacophoreGMM, angle, bondidx::Int) = bondrotate(pgmm, angle, pgmm.axes[bondidx], pgmm.origins[bondidx], pgmm.bondtofeatures[bondidx], pgmm.bondtobonds[bondidx])
 function bondrotate(pgmm::PharmacophoreGMM, angles, bondidxs::AbstractVector{Int})
     newpgmm = bondrotate(pgmm, first(angles), first(bondidxs))
     for (angle, bondidx) in zip(angles[2:end],bondidxs[2:end])

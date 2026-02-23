@@ -1,4 +1,4 @@
-## filter out rotable bonds for terminal heavy atoms and hydrogens
+## filter out rotatable bonds for terminal heavy atoms and hydrogens
 
 function isterminalnode(mol, nodeidx, ignoreH=true)
     if ignoreH
@@ -20,18 +20,18 @@ function rotatablebonds(mol::SDFMolGraph, ignoreH=true)
     for (rot, e) in zip(rotatable, edges(mol))
         rot && !isterminalbond(mol, e, ignoreH) && push!(rotbonds, e)
     end
-    # rank rotable bonds by how much effect they will have on shape
+    # rank rotatable bonds by how much effect they will have on shape
     sort!(rotbonds; rev=true, by=x->length(RotatableSubgraph(mol, x).vlist))
     return rotbonds
 end
 
-function rotablesubgraphs(mol::SDFMolGraph)
+function rotatablesubgraphs(mol::SDFMolGraph)
     return [RotatableSubgraph(mol, rb) for rb in rotatablebonds(mol)]
 end
 
 
 
-## generation of conformers for a particular bond-angle increment for all rotable bonds
+## generation of conformers for a particular bond-angle increment for all rotatable bonds
 
 function conformers(mol::SDFMolGraph; step=π/3, lower=-π, upper=π*(1-eps(Float64)), maxbonds=2)
     rotbonds = rotatablebonds(mol)
@@ -76,8 +76,8 @@ function align_conformers(confs::AbstractVector{<:G}, template::L; alignfun = lo
     tform = identity
     for (i,conf) in enumerate(confs)
         res = alignfun(conf, template)
-        min = typeof(alignfun) == typeof(rocs_align) ? res.minimum : 
-              typeof(alignfun) == typeof(local_align) ? res[1] : 
+        min = typeof(alignfun) == typeof(rocs_align) ? res.minimum :
+              typeof(alignfun) == typeof(local_align) ? res[1] :
               res.upperbound
         if min < bestolap
             bestconf = conf
