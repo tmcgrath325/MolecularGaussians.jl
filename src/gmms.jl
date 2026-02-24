@@ -58,8 +58,8 @@ function PharmacophoreGMM(mol::SDFMolGraph;
                           σfun = vdw_volume_sigma,
                           ϕfun = a -> one(typeof(MolecularGraph.atom_radius(a))),
                           featuremaps::Dict{K,Vector{Vector{Int}}} = Dict{Symbol,Vector{Vector{Int}}}(:Volume => [[i] for i in heavy_atom_idxs(mol)])) where K
-    N = length(props(mol,1).coords)
-    T = eltype(props(mol,1).coords)
+    N = isempty(mol.vprops) ? 3 : length(props(mol,1).coords)
+    T = isempty(mol.vprops) ? Float64 : eltype(props(mol,1).coords)
     # prep for bond rotations
     sgs = rotatablesubgraphs(mol)
     if rigid
