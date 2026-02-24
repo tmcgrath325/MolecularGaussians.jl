@@ -118,12 +118,12 @@ end
 
 Base.:-(x::PharmacophoreGMM, T::AbstractVector) = x + (-T)
 
-feature_labels(x::PharmacophoreGMM) = unique([g.label for g in x.gaussians])
+feature_labels(x::PharmacophoreGMM) = unique(x.labels)
 
 # descriptive display
 
 Base.show(io::IO, pgmm::PharmacophoreGMM) = println(io,
     summary(pgmm),
     " with $(length(pgmm)) Gaussians with labels:\n",
-    "$([label for label in feature_labels(pgmm)])"
+    "$(feature_labels(pgmm))"
 )
