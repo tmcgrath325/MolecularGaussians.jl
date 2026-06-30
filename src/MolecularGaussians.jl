@@ -35,6 +35,10 @@ using GaussianMixtureAlignment: IsotropicGaussian, IsotropicGMM, IsotropicMultiG
 using GaussianMixtureAlignment: centroid
 using GaussianMixtureAlignment: local_align, rocs_align, gogma_align, rot_gogma_align, tiv_gogma_align, overlap, distance, tanimoto
 
+# The alignment functions default to AutoForwardDiff(); loading ForwardDiff
+# activates the DifferentiationInterface backend that default requires.
+import ForwardDiff
+
 export local_align, gogma_align, tiv_gogma_align, overlap, distance, tanimoto
 export AtomGaussian, MolGMM, PharmacophoreGMM
 export vdwradii, vdwradii!
