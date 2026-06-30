@@ -1,10 +1,10 @@
 mutable struct FeatureDefParser
-    lineiter
+    const lineiter
     line::String
     words::Vector{String}
-    atomtypes::Dict{Symbol,AtomType}
-    features::Dict{Symbol,FeatureDef}
-    families::Dict{Symbol,Vector{Symbol}}
+    const atomtypes::Dict{Symbol,AtomType}
+    const features::Dict{Symbol,FeatureDef}
+    const families::Dict{Symbol,Vector{Symbol}}
     function FeatureDefParser(path::String)
         lineiter = Iterators.Stateful(eachline(path))
         line = ""
