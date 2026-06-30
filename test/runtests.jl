@@ -6,6 +6,7 @@ using Rotations
 using LinearAlgebra
 using Test
 using Aqua
+using ExplicitImports
 
 using Graphs: induced_subgraph
 using GaussianMixtureAlignment: distance
@@ -62,4 +63,22 @@ end
     #   deliberately extend Base/MolecularGraph functions on MolecularGraph types.
     # undocumented_names: docstring coverage is tracked separately.
     Aqua.test_all(MolecularGaussians; piracies = false, undocumented_names = false)
+end
+
+@testset "ExplicitImports" begin
+    # The ignored names have no public API in their defining packages: @recipe,
+    # Theme, plot! (MakieCore) are the recipe interface, and
+    # AbstractIsotropicMultiGMM, centroid, distance, local_align, tanimoto
+    # (GaussianMixtureAlignment) plus Color, colortype (MolecularGraph) are the
+    # internals this package builds on — the same coupling Aqua's piracy check
+    # exempts. The two public-ness checks resolve "public" accurately only on
+    # Julia 1.11+, so they are gated by version; the other five checks run
+    # everywhere.
+    test_explicit_imports(MolecularGaussians;
+        all_explicit_imports_are_public = VERSION >= v"1.11" ?
+            (; ignore = (Symbol("@recipe"), :Theme, :plot!, :Color, :colortype,
+                         :AbstractIsotropicMultiGMM, :centroid, :distance,
+                         :local_align, :tanimoto)) : false,
+        all_qualified_accesses_are_public = VERSION >= v"1.11",
+    )
 end

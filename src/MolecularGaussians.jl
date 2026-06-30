@@ -17,23 +17,14 @@ REPL help
 """
 module MolecularGaussians
 
-using LinearAlgebra
+using StaticArrays: SVector
+using CoordinateTransformations: AffineMap, LinearMap, Translation
+using Rotations: AngleAxis, RotMatrix
 
-using StaticArrays
-using CoordinateTransformations
-using Rotations
+using MolecularGraph: MolecularGraph, SDFAtom, SDFMolGraph, SimpleMolGraph, atomnumber, colortype, Color, get_prop, is_rotatable, moldisplay, molecular_formula, props, smartstomol, stick!, substruct_matches
+using Graphs: Graphs, connected_components, edges, induced_subgraph, neighbors, vertices
 
-using MolecularGraph
-using Graphs
-
-using Optim
-
-using GaussianMixtureAlignment
-using GaussianMixtureAlignment: AbstractGaussian, AbstractSingleGMM, AbstractMultiGMM, AbstractGMM
-using GaussianMixtureAlignment: AbstractIsotropicGaussian, AbstractIsotropicGMM, AbstractIsotropicMultiGMM
-using GaussianMixtureAlignment: IsotropicGaussian, IsotropicGMM, IsotropicMultiGMM
-using GaussianMixtureAlignment: centroid
-using GaussianMixtureAlignment: local_align, rocs_align, gogma_align, rot_gogma_align, tiv_gogma_align, overlap, distance, tanimoto
+using GaussianMixtureAlignment: IsotropicGaussian, IsotropicGMM, AbstractIsotropicMultiGMM, centroid, local_align, rocs_align, gogma_align, tiv_gogma_align, overlap, distance, tanimoto, gmmdisplay!
 
 # The alignment functions default to AutoForwardDiff(); loading ForwardDiff
 # activates the DifferentiationInterface backend that default requires.
@@ -48,9 +39,7 @@ export parse_feature_definitions, feature_maps
 
 export moldisplay
 
-using MakieCore
-using GeometryBasics
-using Colors
+using Colors: Colors
 
 include("utils.jl")
 

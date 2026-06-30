@@ -1,5 +1,5 @@
 mutable struct FeatureDefParser
-    lineiter::Base.Iterators.Stateful{Base.EachLine{IOStream}}
+    lineiter
     line::String
     words::Vector{String}
     atomtypes::Dict{Symbol,AtomType}

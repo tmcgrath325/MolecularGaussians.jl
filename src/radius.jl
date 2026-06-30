@@ -1,4 +1,3 @@
-using MolecularGraph: atomnumber
 import MolecularGraph: atom_radius
 
 MolecularGraph.atom_radius(a::SDFAtom) = MolecularGraph.ATOM_VANDERWAALS_RADII[atomnumber(a.symbol)]

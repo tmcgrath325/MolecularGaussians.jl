@@ -1,6 +1,3 @@
-import CoordinateTransformations 
-import LinearAlgebra: I
-
 ## rotate about a particular axis, centered at a specified origin
 
 function angleaxis_rotation(angle, axis, origin)
@@ -19,7 +16,7 @@ angleaxis_rotate_graph(graph::SDFMolGraph, angle, axis, origin,
 ##  rotation about an edge of the graph
 
 struct RotatableSubgraph{T}
-    edge::Graphs.SimpleEdge{Int}
+    edge::Graphs.Edge{Int}
     proximalidx::Int
     distalidx::Int
     vlist::Vector{Int}
@@ -27,7 +24,7 @@ struct RotatableSubgraph{T}
     origin::SVector{3,T}
 end
 
-function RotatableSubgraph(graph::SDFMolGraph, edge::Graphs.SimpleEdge)
+function RotatableSubgraph(graph::SDFMolGraph, edge::Graphs.Edge)
     # generate a subgraph after removing the specified edge, and obtain the nodes in each connected component
     newgraph = deepcopy(graph)
     Graphs.rem_edge!(newgraph, edge)

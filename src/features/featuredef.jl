@@ -1,5 +1,3 @@
-using MolecularGraph: smartstomol
-
 const TEST_MOL = MolecularGraph.sdftomol(joinpath(dirname(@__FILE__), "../../assets/data/E1050_3d.sdf"))
 
 struct AtomType

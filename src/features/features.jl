@@ -30,10 +30,10 @@ function feature_maps(mol::SimpleMolGraph, fdefs::Vector{FeatureDef})
     for fdef in fdefs
         query = smartstomol(smarts(fdef))
         iter = substruct_matches(mol, query)
-        matchkeys = Vector{Base.KeySet{Int64, Dict{Int64, Int64}}}()
+        matchkeys = Set{Int}[]
         matches = Vector{Vector{Int}}()
         for it in iter
-            itkeys = keys(it)
+            itkeys = Set(keys(it))
             duplicate = false
             for m in matchkeys
                 if itkeys == m

@@ -16,7 +16,7 @@ end
 
 function rotatablebonds(mol::SDFMolGraph, ignoreH=true)
     rotatable = is_rotatable(mol)
-    rotbonds = Vector{Graphs.SimpleEdge{Int}}()
+    rotbonds = Vector{Graphs.Edge{Int}}()
     for (rot, e) in zip(rotatable, edges(mol))
         rot && !isterminalbond(mol, e, ignoreH) && push!(rotbonds, e)
     end

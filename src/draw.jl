@@ -2,8 +2,6 @@
 
 import MakieCore: plot!
 using MakieCore: @recipe, Theme
-using GaussianMixtureAlignment: gmmdisplay
-using MolecularGraph: stick!, colortype, Color
 
 # Fallback palette cycled across GMM components that lack an entry in
 # FEATURE_COLORS. CUD colors: https://jfly.uni-koeln.de/color/#assign
@@ -18,15 +16,15 @@ const DEFAULT_COLORS = [
 ]
 
 const FEATURE_COLORS = Dict(
-    :Donor         => MolecularGraph.Color(255, 0,   255),  # magenta
-    :Acceptor      => MolecularGraph.Color(0,   255, 0  ),  # green
-    :PosIonizable  => MolecularGraph.Color(255, 0,   0  ),  # red
-    :NegIonizable  => MolecularGraph.Color(0,   0,   255),  # blue
-    :Hydrophobe    => MolecularGraph.Color(0,   255, 255),  # cyan
-    :Ring          => MolecularGraph.Color(255, 128, 255),  # orange
-    :AromaticRing  => MolecularGraph.Color(255, 64,  0  ),  # brown
-    :Volume        => MolecularGraph.Color(200, 200, 200),  # light grey
-    :ExcludedVolume=> MolecularGraph.Color(100, 100, 100),  # dark grey
+    :Donor         => Color(255, 0,   255),  # magenta
+    :Acceptor      => Color(0,   255, 0  ),  # green
+    :PosIonizable  => Color(255, 0,   0  ),  # red
+    :NegIonizable  => Color(0,   0,   255),  # blue
+    :Hydrophobe    => Color(0,   255, 255),  # cyan
+    :Ring          => Color(255, 128, 255),  # orange
+    :AromaticRing  => Color(255, 64,  0  ),  # brown
+    :Volume        => Color(200, 200, 200),  # light grey
+    :ExcludedVolume=> Color(100, 100, 100),  # dark grey
 )
 
 @recipe(MolGMMDisplay, p) do scene
