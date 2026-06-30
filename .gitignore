@@ -1,2 +1,8 @@
 /Manifest.toml
+/Manifest-v*.toml
 /extras
+
+# Coverage and allocation-tracking artifacts
+*.jl.cov
+*.jl.*.cov
+*.jl.mem
