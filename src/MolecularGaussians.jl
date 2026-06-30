@@ -40,18 +40,13 @@ using GaussianMixtureAlignment: local_align, rocs_align, gogma_align, rot_gogma_
 import ForwardDiff
 
 export local_align, gogma_align, tiv_gogma_align, overlap, distance, tanimoto
-export AtomGaussian, MolGMM, PharmacophoreGMM
-export vdwradii, vdwradii!
-export partialcharges, partialcharges!
-export pharmfeatures, pharmfeatures!
-export inertial_transforms, rocs_align
-export affinetransform
-export distance
+export PharmacophoreGMM
+export rocs_align
 
 export AtomType, FeatureDef
 export parse_feature_definitions, feature_maps
 
-export moldisplay, pharmacophoregmmdisplay
+export moldisplay
 
 using MakieCore
 using GeometryBasics

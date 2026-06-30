@@ -1,5 +1,7 @@
 # MolecularGaussians.jl
 
+[![Aqua QA](https://juliatesting.github.io/Aqua.jl/dev/assets/badge.svg)](https://github.com/JuliaTesting/Aqua.jl)
+
 Alignment and comparison of small molecules read from .sdf files represented as Gaussian Mixture Models. 
 
 ## Build GMMs from molecules

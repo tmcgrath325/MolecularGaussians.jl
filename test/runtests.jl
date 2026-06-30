@@ -5,6 +5,7 @@ using CoordinateTransformations
 using Rotations
 using LinearAlgebra
 using Test
+using Aqua
 
 using Graphs: induced_subgraph
 using GaussianMixtureAlignment: distance
@@ -54,4 +55,11 @@ end
     b_res = rocs_align(molgmm2, molgmm1)
     f_ovrlp, b_ovrlp = f_res.minimum, b_res.minimum
     @test abs(2*(f_ovrlp-b_ovrlp)/(f_ovrlp+b_ovrlp)) < 0.01
+end
+
+@testset "Aqua" begin
+    # piracies: the molecule transform operators (+, *) and atom_radius(::SDFAtom)
+    #   deliberately extend Base/MolecularGraph functions on MolecularGraph types.
+    # undocumented_names: docstring coverage is tracked separately.
+    Aqua.test_all(MolecularGaussians; piracies = false, undocumented_names = false)
 end
