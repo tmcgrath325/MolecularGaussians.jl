@@ -24,9 +24,9 @@ const FAMILY_DEFS = parse_feature_definitions()
     remove_hydrogens!(gonane)
     # identical mixture models have no distance
     mol_fmaps = feature_maps(mol, FAMILY_DEFS, [:Volume])
-    mol_gmm = PharmacophoreGMM(mol; featuremaps = mol_fmaps)
+    mol_gmm = PharmacophoreGMM(mol; feature_maps = mol_fmaps)
     gonane_fmaps = feature_maps(gonane, FAMILY_DEFS, [:Volume])
-    gonane_gmm = PharmacophoreGMM(gonane; featuremaps = gonane_fmaps)
+    gonane_gmm = PharmacophoreGMM(gonane; feature_maps = gonane_fmaps)
     @test abs(distance(mol_gmm, mol_gmm)) < 1e-12
     @test abs(distance(gonane_gmm, gonane_gmm)) < 1e-12
     # different mixture models have some distance
@@ -50,6 +50,10 @@ end
     @test pgmm.ϕfun(props(mol, 1)) == 2.0
     # the former positional σfun/ϕfun form is a clean break — no shim
     @test_throws MethodError PharmacophoreGMM(mol, a -> 2.0)
+    # `feature_maps` is both the keyword and the field name (matching the function)
+    fm = feature_maps(mol, FAMILY_DEFS, [:Volume])
+    pgmm_fm = PharmacophoreGMM(mol; feature_maps = fm)
+    @test pgmm_fm.feature_maps == fm
 end
 
 @testset "PharmacophoreGMM alignment" begin

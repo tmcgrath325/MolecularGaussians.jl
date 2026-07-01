@@ -19,26 +19,26 @@ julia> # Load SMARTS feature definitions, identify specified types of features, 
 
 julia> familydefs = MG.parse_feature_definitions();
 
-julia> featuremaps1 = MG.feature_maps(mol1, familydefs, [:Donor,:Acceptor,:Aromatic,:NegIonizable])
+julia> feature_maps1 = MG.feature_maps(mol1, familydefs, [:Donor,:Acceptor,:Aromatic,:NegIonizable])
 Dict{Symbol, Vector{Vector{Int64}}} with 4 entries:
   :Acceptor     => [[10], [7], [3], [8], [4], [9], [6], [5]]
   :NegIonizable => [[7, 2, 10, 9, 8], [5, 4, 6, 3, 1]]
   :Donor        => [[8], [4]]
   :Aromatic     => [[22, 25, 27, 26, 24, 28]]
 
-julia> featuremaps2 = MG.feature_maps(mol2, familydefs, [:Donor,:Acceptor,:Aromatic,:NegIonizable])
+julia> feature_maps2 = MG.feature_maps(mol2, familydefs, [:Donor,:Acceptor,:Aromatic,:NegIonizable])
 Dict{Symbol, Vector{Vector{Int64}}} with 4 entries:
   :Acceptor     => [[2], [3], [4], [6], [5]]
   :NegIonizable => [[5, 4, 2, 3, 1]]
   :Donor        => [[3], [6]]
   :Aromatic     => [[22, 21, 20, 18, 24, 23]]
 
-julia> pgmm1 = PharmacophoreGMM(mol1; featuremaps=featuremaps1)
+julia> pgmm1 = PharmacophoreGMM(mol1; feature_maps=feature_maps1)
 PharmacophoreGMM{3, Float64, Symbol, SDFMolGraph} from molecule with formula C18H24O8S2 with 13 Gaussians in 4 GMMs with labels:
 [:Acceptor, :NegIonizable, :Donor, :Aromatic]
 
 
-julia> pgmm2 = PharmacophoreGMM(mol2; featuremaps=featuremaps2)
+julia> pgmm2 = PharmacophoreGMM(mol2; feature_maps=feature_maps2)
 PharmacophoreGMM{3, Float64, Symbol, SDFMolGraph} from molecule with formula C18H24O5S with 9 Gaussians in 4 GMMs with labels:
 [:Acceptor, :NegIonizable, :Donor, :Aromatic]
 ```
