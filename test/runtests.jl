@@ -97,10 +97,8 @@ end
 end
 
 @testset "Aqua" begin
-    # piracies: the molecule transform operators (+, *) and atom_radius(::SDFAtom)
-    #   deliberately extend Base/MolecularGraph functions on MolecularGraph types.
     # undocumented_names: docstring coverage is tracked separately.
-    Aqua.test_all(MolecularGaussians; piracies = false, undocumented_names = false)
+    Aqua.test_all(MolecularGaussians; undocumented_names = false)
 end
 
 @testset "ExplicitImports" begin
