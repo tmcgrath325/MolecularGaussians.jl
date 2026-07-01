@@ -13,24 +13,23 @@ end
 eltype(::Type{PharmacophoreGMM{N,T,K,G}}) where {N,T,K,G} = Pair{K, IsotropicGMM{N,T,G}}
 
 """
-    model = PharmacophoreGMM(mol, σfun=vdwvolume_sigma, ϕfun=ones, nodes=nodeset(mol), features=pubchem_features)
+    PharmacophoreGMM(mol; σfun=vdw_volume_sigma, ϕfun=a->one(typeof(vdw_radius(a))), featuremaps=…)
 
-Creates a set Gaussian mixture models from a molecule or subgraph `mol`, with each model corresponding to a
-particular type of molecular feature (e.g. ring structures)
+Build a `PharmacophoreGMM` from a molecule or subgraph `mol`, with one `IsotropicGMM`
+per molecular-feature family named in `featuremaps`.
 
-Optionally, functions `σfun` and `ϕfun` can be provided, which take `mol` as input and return dictionaries
-mapping node indicies to variances `σ` and scaling coefficients `ϕ`, respectively.
+`featuremaps` maps each feature family (a `Symbol`) to a list of node-index sets; each
+set is collapsed into a single `IsotropicGaussian` feature by `atoms_to_feature`. By
+default it places one single-atom `:Volume` feature on every heavy atom of `mol`.
+`feature_maps` derives pharmacophore families (donors, acceptors, rings, …) from feature
+definitions.
 
-If `nodes` is provided, the Gaussian mixture models will be constructed only from atoms corresponding to the node
-indexes of the molecule's graph.
-
-`features` specifies the keys of allowed molecular features. Features with other keys will be ignored.
-
-`directional` specifies whether or not geometric constraints for ring structures and hydrogen bond donors will be included.
+`ϕfun(atom)` gives an atom's amplitude and `σfun(atom, ϕ)` its width; see
+`atoms_to_feature` for how they combine over multi-atom feature sets.
 """
-function PharmacophoreGMM(mol::SDFMolGraph,
+function PharmacophoreGMM(mol::SDFMolGraph;
                           σfun = vdw_volume_sigma,
-                          ϕfun = a -> one(typeof(vdw_radius(a)));
+                          ϕfun = a -> one(typeof(vdw_radius(a))),
                           featuremaps::Dict{K,Vector{Vector{Int}}} = Dict{Symbol,Vector{Vector{Int}}}(:Volume => [[i] for i in heavy_atom_idxs(mol)])) where K
     N = length(props(mol,1).coords)
     T = eltype(props(mol,1).coords)

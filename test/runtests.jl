@@ -41,6 +41,17 @@ const FAMILY_DEFS = parse_feature_definitions()
     @test distance(sub_gmm, gmm) > 0.1
 end
 
+@testset "PharmacophoreGMM keyword constructor" begin
+    mol = sdftomol(joinpath(@__DIR__, "..", "assets", "data", "E1050_3d.sdf"))
+    remove_hydrogens!(mol)
+    # σfun and ϕfun are keyword arguments; the model stores what was passed
+    pgmm = PharmacophoreGMM(mol; ϕfun = a -> 2.0)
+    @test pgmm isa PharmacophoreGMM
+    @test pgmm.ϕfun(props(mol, 1)) == 2.0
+    # the former positional σfun/ϕfun form is a clean break — no shim
+    @test_throws MethodError PharmacophoreGMM(mol, a -> 2.0)
+end
+
 @testset "PharmacophoreGMM alignment" begin
     ## PharmacophoreGMM alignment
     mol1 = sdftomol(joinpath(@__DIR__, "..", "assets", "data", "E1050_3d.sdf"))
