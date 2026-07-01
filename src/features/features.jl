@@ -21,7 +21,7 @@ function atoms_to_feature(mol::SDFMolGraph, nodeset; ϕfun = rocs_amplitude, σf
         coordmat = hcat([a.coords for a in atoms]...)
         μ = centroid(coordmat, fill(1/length(atoms), length(atoms)))
         ϕ = sum([ϕfun(a) for a in atoms])/length(atoms)
-        σ = sphere_volume_sigma((sum(x -> x^3, [atom_radius(a) for a in atoms]))^(1/3), ϕ)
+        σ = sphere_volume_sigma((sum(x -> x^3, [vdw_radius(a) for a in atoms]))^(1/3), ϕ)
     end
     return IsotropicGaussian(μ, σ, ϕ)
 end
