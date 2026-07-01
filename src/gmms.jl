@@ -81,7 +81,12 @@ end
 
 # descriptive display
 
-Base.show(io::IO, pgmm::PharmacophoreGMM) = println(io,
+Base.show(io::IO, pgmm::PharmacophoreGMM) = print(io,
+    summary(pgmm),
+    " with $(sum(length(gmm.second) for gmm in pgmm)) Gaussians in $(length(pgmm)) GMMs"
+)
+
+Base.show(io::IO, ::MIME"text/plain", pgmm::PharmacophoreGMM) = print(io,
     summary(pgmm),
     " from molecule with formula $(molecular_formula(pgmm.graph))",
     " with $(sum(length(gmm.second) for gmm in pgmm)) Gaussians in $(length(pgmm)) GMMs with labels:\n",

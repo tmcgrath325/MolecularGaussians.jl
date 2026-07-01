@@ -54,12 +54,17 @@ end
 smarts(f::AtomType) = "[" * f.smarts * "]"
 smarts(f::FeatureDef) = f.smarts
 
-Base.show(io::IO, f::AtomType) = println(io,
+Base.show(io::IO, f::AtomType) = print(io,
     summary(f),
     " with SMARTS string: $(smarts(f))",
 )
 
-Base.show(io::IO, f::FeatureDef) = println(io,
+Base.show(io::IO, f::FeatureDef) = print(io,
+    summary(f),
+    " of the :$(f.family) family with SMARTS string: $(smarts(f))",
+)
+
+Base.show(io::IO, ::MIME"text/plain", f::FeatureDef) = print(io,
     summary(f),
     " of the :$(f.family) family\n",
     "with SMARTS string: $(smarts(f))",

@@ -150,6 +150,23 @@ end
     @test parse_feature_definitions(SubString(defpath)) isa MG.FamilyDef
 end
 
+@testset "compact show is newline-free" begin
+    mol = sdftomol(joinpath(@__DIR__, "..", "assets", "data", "E1050_3d.sdf"))
+    remove_hydrogens!(mol)
+    at = AtomType("A"; wrap=false)
+    fd = MG.FeatureDef("[#6]", :Carbon, [1.0])
+    pgmm = PharmacophoreGMM(mol)
+    # the 2-arg show(io, x) is used to render container elements, so it must not
+    # emit newlines — both alone and inside a vector.
+    for x in (at, fd, pgmm)
+        @test !occursin('\n', sprint(show, x))
+        @test !occursin('\n', sprint(show, [x, x]))
+    end
+    # the pretty multi-line rendering lives on the MIME"text/plain" method.
+    @test occursin('\n', sprint(show, MIME("text/plain"), pgmm))
+    @test occursin('\n', sprint(show, MIME("text/plain"), fd))
+end
+
 @testset "MakieCore extension" begin
     # Loading MakieCore (at the top of this file) must activate the extension,
     # which supplies the pharmacophoredisplay method.
