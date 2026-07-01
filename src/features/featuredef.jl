@@ -1,5 +1,3 @@
-const TEST_MOL = MolecularGraph.sdftomol(joinpath(dirname(@__FILE__), "../../assets/data/E1050_3d.sdf"))
-
 struct AtomType
     smarts::String
     function AtomType(smarts::String, wrap = true)
@@ -42,15 +40,3 @@ Base.show(io::IO, f::FeatureDef) = println(io,
     " of the :$(f.family) family\n",
     "with SMARTS string: $(smarts(f))",
 )
-
-
-function test_smarts(smarts::String)
-    try 
-        query = smartstomol(smarts)
-        matches = MolecularGraph.substructmatches(TEST_MOL, query)
-        collect(matches)
-    catch
-        return false
-    end
-    return true
-end
