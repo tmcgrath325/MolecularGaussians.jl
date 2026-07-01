@@ -10,7 +10,7 @@ struct PharmacophoreGMM{N,T<:Real,K,G<:SimpleMolGraph} <: AbstractIsotropicMulti
     feature_maps::Dict{K, Vector{Vector{Int}}}
 end
 
-eltype(::Type{PharmacophoreGMM{N,T,K,G}}) where {N,T,K,G} = Pair{K, IsotropicGMM{N,T,G}}
+eltype(::Type{PharmacophoreGMM{N,T,K,G}}) where {N,T,K,G} = Pair{K, IsotropicGMM{N,T}}
 
 """
     PharmacophoreGMM(mol; σfun=vdw_volume_sigma, ϕfun=a->one(typeof(vdw_radius(a))), feature_maps=…)

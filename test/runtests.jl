@@ -54,6 +54,9 @@ end
     fm = feature_maps(mol, FAMILY_DEFS, [:Volume])
     pgmm_fm = PharmacophoreGMM(mol; feature_maps = fm)
     @test pgmm_fm.feature_maps == fm
+    # the type-based eltype agrees with the instance-based one (no stray graph
+    # parameter leaking into the IsotropicGMM element type)
+    @test eltype(typeof(pgmm)) == eltype(pgmm) == Pair{Symbol, MG.IsotropicGMM{3,Float64}}
 end
 
 @testset "atoms_to_feature defaults" begin
