@@ -56,7 +56,7 @@ function align_conformers(xconfs::AbstractVector{<:G}, yconfs::AbstractVector{<:
     bestolap = Inf
     tform = identity
     for (i,yconf) in enumerate(yconfs)
-        x, ctform, xidx, min = align_conformers(xconfs, yconf, alignfun=alignfun, kwargs...)
+        x, ctform, xidx, min = align_conformers(xconfs, yconf; alignfun, kwargs...)
         if min < bestolap
             bestx = x
             besty = yconf
@@ -82,7 +82,7 @@ function align_conformers(confs::AbstractVector{<:G}, template::L; alignfun = lo
     bestolap = Inf
     tform = identity
     for (i,conf) in enumerate(confs)
-        min, restform = _overlap_tform(alignfun(conf, template))
+        min, restform = _overlap_tform(alignfun(conf, template; kwargs...))
         if min < bestolap
             bestconf = conf
             bestidx = i

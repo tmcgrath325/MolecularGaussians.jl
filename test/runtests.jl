@@ -102,6 +102,15 @@ end
         @test olap isa Real && isfinite(olap)
         @test tform !== identity
     end
+    # extra keyword arguments are forwarded to alignfun, not dropped — through
+    # both the (confs, template) and the (xconfs, yconfs) methods.
+    received = Ref{Any}(:unset)
+    stub(a, b; myopt = nothing) = (received[] = myopt; (0.0, ntuple(_ -> 0.0, 6)))
+    MG.align_conformers(confs, y; alignfun = stub, myopt = 42)
+    @test received[] == 42
+    received[] = :unset
+    MG.align_conformers(confs, [y]; alignfun = stub, myopt = 7)
+    @test received[] == 7
 end
 
 @testset "coordinate transforms" begin
