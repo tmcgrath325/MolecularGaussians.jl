@@ -1,6 +1,6 @@
 struct AtomType
     smarts::String
-    function AtomType(smarts::String, wrap = true)
+    function AtomType(smarts::String; wrap = true)
         return wrap ? new("\$(" * smarts  * ")") : new(smarts)
     end
 end
@@ -27,7 +27,7 @@ Combine two atom types with SMARTS disjunction: the result matches an atom
 satisfying `x` or `y` (the `,` operator in a SMARTS atom expression). `y` may be
 an `AtomType` or a raw SMARTS `String`.
 """
-smarts_or(x::AtomType, y::AtomType) = AtomType(x.smarts * "," * y.smarts, false)
+smarts_or(x::AtomType, y::AtomType) = AtomType(x.smarts * "," * y.smarts; wrap=false)
 smarts_or(x::AtomType, y::String) = smarts_or(x, AtomType(y))
 
 """
@@ -36,7 +36,7 @@ smarts_or(x::AtomType, y::String) = smarts_or(x, AtomType(y))
 Restrict `x` to atoms that do not also satisfy `y` (the SMARTS expression
 `!y;x`). `y` may be an `AtomType` or a raw SMARTS `String`.
 """
-smarts_andnot(x::AtomType, y::AtomType) = AtomType("!" * y.smarts * ";" * x.smarts, false)
+smarts_andnot(x::AtomType, y::AtomType) = AtomType("!" * y.smarts * ";" * x.smarts; wrap=false)
 smarts_andnot(x::AtomType, y::String) = smarts_andnot(x, AtomType(y))
 
 Base.@deprecate Base.:+(x::AtomType, y::AtomType) smarts_or(x, y) false

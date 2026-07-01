@@ -87,8 +87,13 @@ end
 end
 
 @testset "SMARTS atom-type combinators" begin
-    a = AtomType("A", false)
-    b = AtomType("B", false)
+    a = AtomType("A"; wrap=false)
+    b = AtomType("B"; wrap=false)
+    # `wrap` is a keyword: the default wraps the SMARTS in `$(...)`, `wrap=false`
+    # stores it verbatim.
+    @test AtomType("A").smarts == "\$(A)"
+    @test AtomType("A"; wrap=false).smarts == "A"
+    @test_throws MethodError AtomType("A", false)
     # OR joins atom expressions with a comma; AND-NOT negates the second term.
     @test MG.smarts_or(a, b).smarts == "A,B"
     @test MG.smarts_andnot(a, b).smarts == "!B;A"
