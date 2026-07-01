@@ -20,11 +20,35 @@ struct FamilyDef
     families::Dict{Symbol, Vector{Symbol}}
 end
 
-Base.:+(x::AtomType, y::AtomType) = AtomType(x.smarts * "," * y.smarts, false)
-Base.:+(x::AtomType, y::String) = x + AtomType(y)
+"""
+    smarts_or(x::AtomType, y) -> AtomType
 
-Base.:-(x::AtomType, y::AtomType) = AtomType("!" * y.smarts * ";" * x.smarts, false)
-Base.:-(x::AtomType, y::String) = x - AtomType(y)
+Combine two atom types with SMARTS disjunction: the result matches an atom
+satisfying `x` or `y` (the `,` operator in a SMARTS atom expression). `y` may be
+an `AtomType` or a raw SMARTS `String`.
+"""
+smarts_or(x::AtomType, y::AtomType) = AtomType(x.smarts * "," * y.smarts, false)
+smarts_or(x::AtomType, y::String) = smarts_or(x, AtomType(y))
+
+"""
+    smarts_andnot(x::AtomType, y) -> AtomType
+
+Restrict `x` to atoms that do not also satisfy `y` (the SMARTS expression
+`!y;x`). `y` may be an `AtomType` or a raw SMARTS `String`.
+"""
+smarts_andnot(x::AtomType, y::AtomType) = AtomType("!" * y.smarts * ";" * x.smarts, false)
+smarts_andnot(x::AtomType, y::String) = smarts_andnot(x, AtomType(y))
+
+Base.@deprecate Base.:+(x::AtomType, y::AtomType) smarts_or(x, y) false
+Base.@deprecate Base.:+(x::AtomType, y::String) smarts_or(x, y) false
+Base.@deprecate Base.:-(x::AtomType, y::AtomType) smarts_andnot(x, y) false
+Base.@deprecate Base.:-(x::AtomType, y::String) smarts_andnot(x, y) false
+
+# `public` is a soft keyword only on Julia 1.11+; guard so the module still
+# loads on the 1.10 LTS, where the declaration is simply absent.
+@static if VERSION >= v"1.11"
+    eval(Meta.parse("public smarts_or, smarts_andnot"))
+end
 
 
 smarts(f::AtomType) = "[" * f.smarts * "]"

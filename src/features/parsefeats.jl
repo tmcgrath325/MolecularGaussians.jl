@@ -50,7 +50,7 @@ function parse_atomtype!(parser::FeatureDefParser)
         smarts = smarts * substitute_atom_types(parser.line, parser.atomtypes)
     end
     if haskey(parser.atomtypes, atomname)
-        parser.atomtypes[atomname] = negater ? parser.atomtypes[atomname] - smarts : parser.atomtypes[atomname] + smarts
+        parser.atomtypes[atomname] = negater ? smarts_andnot(parser.atomtypes[atomname], smarts) : smarts_or(parser.atomtypes[atomname], smarts)
     else
         push!(parser.atomtypes, atomname => AtomType(smarts))
     end

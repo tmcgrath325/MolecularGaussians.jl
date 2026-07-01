@@ -58,6 +58,19 @@ end
     @test abs(2*(f_ovrlp-b_ovrlp)/(f_ovrlp+b_ovrlp)) < 0.01
 end
 
+@testset "SMARTS atom-type combinators" begin
+    a = AtomType("A", false)
+    b = AtomType("B", false)
+    # OR joins atom expressions with a comma; AND-NOT negates the second term.
+    @test MG.smarts_or(a, b).smarts == "A,B"
+    @test MG.smarts_andnot(a, b).smarts == "!B;A"
+    # A raw SMARTS string on the right is wrapped as an AtomType first.
+    @test MG.smarts_or(a, "B").smarts == MG.smarts_or(a, AtomType("B")).smarts
+    # The deprecated +/- operators forward to the named combinators.
+    @test (@test_deprecated a + b).smarts == MG.smarts_or(a, b).smarts
+    @test (@test_deprecated a - b).smarts == MG.smarts_andnot(a, b).smarts
+end
+
 @testset "Aqua" begin
     # piracies: the molecule transform operators (+, *) and atom_radius(::SDFAtom)
     #   deliberately extend Base/MolecularGraph functions on MolecularGraph types.
