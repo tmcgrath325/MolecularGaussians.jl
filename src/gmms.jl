@@ -71,7 +71,7 @@ function transform(pgmm::PharmacophoreGMM{N,T,K,G}, tform::AffineMap) where {N,T
     for (key, gmm) in pgmm.gmms
         push!(newgmms, key => tform(gmm))
     end
-    return PharmacophoreGMM{N,T,K,G}(newgmms, tform(pgmm.graph), pgmm.σfun, pgmm.ϕfun, pgmm.featuremaps)
+    return PharmacophoreGMM{N,T,K,G}(newgmms, transformed(tform, pgmm.graph), pgmm.σfun, pgmm.ϕfun, pgmm.featuremaps)
 end
 
 # `public` is a soft keyword only on Julia 1.11+; guard so the module still

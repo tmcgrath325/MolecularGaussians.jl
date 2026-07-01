@@ -59,6 +59,22 @@ end
     @test abs(2*(f_ovrlp-b_ovrlp)/(f_ovrlp+b_ovrlp)) < 0.01
 end
 
+@testset "coordinate transforms" begin
+    mol = sdftomol(joinpath(@__DIR__, "..", "assets", "data", "E1050_3d.sdf"))
+    orig1 = copy(props(mol, 1).coords)
+    tform = AffineMap(RotationVec(0.3, -0.2, 0.5), SVector(1.0, 2.0, 3.0))
+    # `transformed` maps every atom's coordinates through the tform, preserves the
+    # coordinate container type, and leaves the source molecule unmutated.
+    mol2 = MG.transformed(tform, mol)
+    @test all(props(mol2, i).coords ≈ tform(props(mol, i).coords) for i in keys(mol.vprops))
+    @test typeof(props(mol2, 1).coords) == typeof(props(mol, 1).coords)
+    @test props(mol, 1).coords == orig1
+    # Transforming a PharmacophoreGMM carries the transform into its molecular graph.
+    pgmm = PharmacophoreGMM(mol)
+    pgmm2 = MG.transform(pgmm, tform)
+    @test all(props(pgmm2.graph, i).coords ≈ tform(props(mol, i).coords) for i in keys(mol.vprops))
+end
+
 @testset "SMARTS atom-type combinators" begin
     a = AtomType("A", false)
     b = AtomType("B", false)

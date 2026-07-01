@@ -6,7 +6,7 @@ end
 
 function angleaxis_rotate_coords(angle, axis, origin, args...)
     tform = angleaxis_rotation(angle, axis, origin)
-    return tform(args...)
+    return transformed(tform, args...)
 end
 
 angleaxis_rotate_graph(graph::SDFMolGraph, angle, axis, origin,
@@ -53,7 +53,7 @@ function rotate_edge!(graph::SDFMolGraph, edge, angle)
     rs = RotatableSubgraph(graph, edge)
     tform = angleaxis_rotation(angle, rs.axis, rs.origin)
     for i in rs.vlist
-        graph.vprops[i] = tform(props(graph, i))
+        graph.vprops[i] = transformed(tform, props(graph, i))
     end
     return graph
 end
