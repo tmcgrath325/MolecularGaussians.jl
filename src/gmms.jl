@@ -65,7 +65,7 @@ end
 
 Base.:-(x::PharmacophoreGMM, T::AbstractVector) = x + (-T)
 
-function transform(pgmm::PharmacophoreGMM{N,T,K,G}, tform::AffineMap) where {N,T,K,G}
+function transform(pgmm::PharmacophoreGMM{N,T,K,G}, tform) where {N,T,K,G}
     newgmms = Dict{K, IsotropicGMM{N,T}}()
     for (key, gmm) in pgmm.gmms
         push!(newgmms, key => tform(gmm))

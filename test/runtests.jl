@@ -84,6 +84,13 @@ end
     pgmm = PharmacophoreGMM(mol)
     pgmm2 = MG.transform(pgmm, tform)
     @test all(props(pgmm2.graph, i).coords ≈ tform(props(mol, i).coords) for i in keys(mol.vprops))
+    # `transform` accepts non-affine transforms too (rotation-only, translation-only).
+    lin = LinearMap(RotationVec(0.3, -0.2, 0.5))
+    tr = Translation(SVector(1.0, 2.0, 3.0))
+    pgmm_lin = MG.transform(pgmm, lin)
+    pgmm_tr = MG.transform(pgmm, tr)
+    @test all(props(pgmm_lin.graph, i).coords ≈ lin(props(mol, i).coords) for i in keys(mol.vprops))
+    @test all(props(pgmm_tr.graph, i).coords ≈ tr(props(mol, i).coords) for i in keys(mol.vprops))
 end
 
 @testset "SMARTS atom-type combinators" begin
