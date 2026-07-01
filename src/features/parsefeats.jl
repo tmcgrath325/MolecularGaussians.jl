@@ -16,6 +16,18 @@ mutable struct FeatureDefParser
     end
 end
 
+"""
+    parse_feature_definitions(path=<bundled FeatureDefinitions.fdef>) -> FamilyDef
+
+Parse an RDKit-style `.fdef` pharmacophore-definition file into a
+[`FamilyDef`](@ref). The file declares named atom types (`AtomType`) and
+features (`DefineFeature ... EndFeature`), each assigned to a pharmacophore
+family; braced references like `{Donor}` are expanded from previously defined
+atom types.
+
+With no argument, parses the definitions bundled with the package under
+`assets/const/FeatureDefinitions.fdef`.
+"""
 parse_feature_definitions(path::AbstractString = joinpath(dirname(@__FILE__), "../../assets/const/FeatureDefinitions.fdef")) = parse_feature_definitions!(FeatureDefParser(path))
 
 function parse_feature_definitions!(parser::FeatureDefParser)

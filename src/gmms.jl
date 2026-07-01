@@ -26,6 +26,16 @@ definitions.
 
 `ϕfun(atom)` gives an atom's amplitude and `σfun(atom, ϕ)` its width; see
 `atoms_to_feature` for how they combine over multi-atom feature sets.
+
+# Example
+
+```jldoctest
+julia> mol = sdftomol(joinpath(pkgdir(MolecularGaussians), "assets", "data", "E1050_3d.sdf"));
+
+julia> PharmacophoreGMM(mol)
+PharmacophoreGMM{3, Float64, Symbol, SDFMolGraph} from molecule with formula C18H24O8S2 with 28 Gaussians in 1 GMMs with labels:
+[:Volume]
+```
 """
 function PharmacophoreGMM(mol::SDFMolGraph;
                           σfun = vdw_volume_sigma,
@@ -65,6 +75,14 @@ end
 
 Base.:-(x::PharmacophoreGMM, T::AbstractVector) = x + (-T)
 
+"""
+    transform(pgmm::PharmacophoreGMM, tform) -> PharmacophoreGMM
+
+Apply the transformation `tform` to every Gaussian of `pgmm` and to its
+underlying molecular graph, returning a new `PharmacophoreGMM`. `tform` is
+called as `tform(gmm)` on each per-family `IsotropicGMM` and must map a set of
+3-D points rigidly (e.g. an `AffineMap` from CoordinateTransformations).
+"""
 function transform(pgmm::PharmacophoreGMM{N,T,K,G}, tform) where {N,T,K,G}
     newgmms = Dict{K, IsotropicGMM{N,T}}()
     for (key, gmm) in pgmm.gmms

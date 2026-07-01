@@ -9,6 +9,7 @@ using Aqua
 using ExplicitImports
 using MakieCore   # triggers the MolecularGaussiansMakieCoreExt package extension
 using OffsetArrays: OffsetArray
+using Documenter
 
 using Graphs: induced_subgraph, edges, vertices, connected_components, rem_edge!, neighbors
 using GaussianMixtureAlignment: distance
@@ -16,6 +17,13 @@ using MolecularGaussians: nodeset
 
 const MG = MolecularGaussians
 const FAMILY_DEFS = parse_feature_definitions()
+
+DocMeta.setdocmeta!(MolecularGaussians, :DocTestSetup,
+                    :(using MolecularGaussians, MolecularGraph); recursive = true)
+
+@testset "Doctests" begin
+    doctest(MolecularGaussians)
+end
 
 
 @testset "Gaussian Mixture Distance" begin

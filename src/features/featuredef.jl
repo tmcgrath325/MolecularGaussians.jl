@@ -1,3 +1,14 @@
+"""
+    AtomType(smarts::AbstractString; wrap=true)
+
+A named atom class defined by the SMARTS atom expression `smarts` (the contents
+of a bracketed atom, without the enclosing `[...]`).
+
+By default the expression is wrapped as `\$(smarts)` so that it can be combined
+with others via [`smarts_or`](@ref) and [`smarts_andnot`](@ref) without
+precedence surprises. Pass `wrap=false` to store `smarts` verbatim; the
+combining functions use this to avoid re-wrapping already-grouped expressions.
+"""
 struct AtomType
     smarts::String
     function AtomType(smarts::AbstractString; wrap = true)
@@ -5,6 +16,14 @@ struct AtomType
     end
 end
 
+"""
+    FeatureDef(smarts::AbstractString, family::Symbol, weights::AbstractVector{<:Real})
+
+A pharmacophore feature definition: atoms matching the SMARTS pattern `smarts`
+form a feature of pharmacophore `family` (e.g. `:Donor`, `:Acceptor`). `weights`
+gives a per-matched-atom weighting used when the matched atoms are combined into
+a single Gaussian feature.
+"""
 struct FeatureDef
     smarts::String
     family::Symbol
@@ -14,6 +33,18 @@ struct FeatureDef
     end
 end
 
+"""
+    FamilyDef(atomtypes, features, families)
+
+A parsed set of pharmacophore definitions, as returned by
+[`parse_feature_definitions`](@ref).
+
+- `atomtypes::Dict{Symbol, AtomType}`: named atom classes referenced by feature
+  SMARTS patterns.
+- `features::Dict{Symbol, FeatureDef}`: named feature definitions.
+- `families::Dict{Symbol, Vector{Symbol}}`: the feature names belonging to each
+  pharmacophore family.
+"""
 struct FamilyDef
     atomtypes::Dict{Symbol, AtomType}
     features::Dict{Symbol, FeatureDef}

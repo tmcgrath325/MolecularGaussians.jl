@@ -8,12 +8,12 @@ It makes use of GaussianMixtureAlignment.jl to compute alignments, overlap, and 
 REPL help
 =========
 
-? followed by an algorith or constructor name will print help to the terminal. See: \n
-    \t?MolGMM \n
-    \t?PharmacophoreGMM \n
-    \t?gogma_align \n
-    \t?tiv_gogma_align \n
-    \t?rocs_align \n
+`?` followed by an algorithm or constructor name prints its help to the terminal, e.g.
+
+- `?PharmacophoreGMM`
+- `?gogma_align`
+- `?tiv_gogma_align`
+- `?rocs_align`
 """
 module MolecularGaussians
 
@@ -47,6 +47,9 @@ Plot one or more `PharmacophoreGMM`s and their underlying molecules.
 Requires a Makie backend (e.g. GLMakie or CairoMakie) to be loaded; the method
 is provided by the MakieCore package extension. Without a backend loaded, this
 call raises a `MethodError`.
+
+Returns the `FigureAxisPlot` produced by the plot, which can be used to further
+customize, display, or save the figure.
 """
 function pharmacophoredisplay end
 

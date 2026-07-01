@@ -32,6 +32,19 @@ end
     eval(Meta.parse("public atoms_to_feature"))
 end
 
+"""
+    feature_maps(mol, fdefs::AbstractVector{<:FeatureDef}) -> Dict{Symbol, Vector{Vector{Int}}}
+    feature_maps(mol, familydef::FamilyDef, families=keys(familydef.families)) -> Dict{Symbol, Vector{Vector{Int}}}
+
+Map each pharmacophore family to the sets of atom indices in `mol` that realize
+it. For every `FeatureDef`, the atoms of each distinct substructure match of its
+SMARTS pattern become one index set, grouped under the feature's family; each
+such set is what [`atoms_to_feature`](@ref) later collapses into a single
+Gaussian.
+
+The second form draws its feature definitions from a [`FamilyDef`](@ref),
+restricted to the requested `families` (all families by default).
+"""
 function feature_maps(mol::SimpleMolGraph, fdefs::AbstractVector{<:FeatureDef})
     featuremaps = Dict{Symbol,Vector{Vector{Int}}}()
     for fdef in fdefs
