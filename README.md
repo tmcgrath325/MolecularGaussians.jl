@@ -1,8 +1,27 @@
 # MolecularGaussians.jl
 
+[![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://tmcgrath325.github.io/MolecularGaussians.jl/stable)
+[![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://tmcgrath325.github.io/MolecularGaussians.jl/dev)
+[![Build Status](https://github.com/tmcgrath325/MolecularGaussians.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/tmcgrath325/MolecularGaussians.jl/actions/workflows/CI.yml?query=branch%3Amain)
+[![Coverage](https://codecov.io/gh/tmcgrath325/MolecularGaussians.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/tmcgrath325/MolecularGaussians.jl)
+[![Version](https://juliahub.com/docs/General/MolecularGaussians/stable/version.svg)](https://juliahub.com/ui/Packages/General/MolecularGaussians)
 [![Aqua QA](https://juliatesting.github.io/Aqua.jl/dev/assets/badge.svg)](https://github.com/JuliaTesting/Aqua.jl)
 
-Alignment and comparison of small molecules read from .sdf files represented as Gaussian Mixture Models. 
+Alignment and comparison of small molecules read from .sdf files, represented as
+Gaussian mixture models. Each molecule (or a chosen set of its pharmacophore
+features) becomes a mixture of isotropic Gaussians, and
+[GaussianMixtureAlignment.jl](https://github.com/tmcgrath325/GaussianMixtureAlignment.jl)
+provides the overlap, distance, and rigid-alignment machinery.
+
+## Installation
+
+```julia
+julia> using Pkg; Pkg.add("MolecularGaussians")
+```
+
+Full documentation, including an explanation of the underlying concepts and an
+API reference, is available at the
+[documentation site](https://tmcgrath325.github.io/MolecularGaussians.jl/stable).
 
 ## Build GMMs from molecules
 

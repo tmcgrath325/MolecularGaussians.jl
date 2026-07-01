@@ -6,3 +6,8 @@
 *.jl.cov
 *.jl.*.cov
 *.jl.mem
+
+# Documenter build output and per-machine docs manifests
+/docs/build/
+/docs/Manifest.toml
+/docs/Manifest-v*.toml

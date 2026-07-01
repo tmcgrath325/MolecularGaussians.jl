@@ -1,0 +1,8 @@
+[deps]
+Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
+MolecularGaussians = "be997a16-3bf6-4821-ae3d-37ccaa1f3368"
+MolecularGraph = "6c89ec66-9cd8-5372-9f91-fabc50dd27fd"
+
+[compat]
+Documenter = "1"
+MolecularGraph = "0.17.2, 0.18, 0.19, 0.20, 0.21, 0.22"
