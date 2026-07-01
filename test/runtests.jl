@@ -87,6 +87,23 @@ end
     @test abs(2*(f_ovrlp-b_ovrlp)/(f_ovrlp+b_ovrlp)) < 0.01
 end
 
+@testset "align_conformers result dispatch" begin
+    mol1 = sdftomol(joinpath(@__DIR__, "..", "assets", "data", "E1050_3d.sdf")); remove_hydrogens!(mol1)
+    mol2 = sdftomol(joinpath(@__DIR__, "..", "assets", "data", "E1103_3d.sdf")); remove_hydrogens!(mol2)
+    x = PharmacophoreGMM(mol1); y = PharmacophoreGMM(mol2)
+    confs = [x]
+    # align_conformers normalizes each backend's result by dispatching on the
+    # returned value, so the named backends and a wrapper returning one of their
+    # results all work. (gogma_align is omitted: the global optimizer is too slow.)
+    for alignfun in (local_align, rocs_align, (a, b) -> rocs_align(a, b))
+        conf, tform, idx, olap = MG.align_conformers(confs, y; alignfun)
+        @test conf === x
+        @test idx == 1
+        @test olap isa Real && isfinite(olap)
+        @test tform !== identity
+    end
+end
+
 @testset "coordinate transforms" begin
     mol = sdftomol(joinpath(@__DIR__, "..", "assets", "data", "E1050_3d.sdf"))
     orig1 = copy(props(mol, 1).coords)
@@ -214,17 +231,18 @@ end
 @testset "ExplicitImports" begin
     # `test_explicit_imports` also checks the MakieCore extension. The ignored
     # names have no public API in their defining packages: AbstractIsotropicMultiGMM,
-    # centroid, distance, local_align, tanimoto (GaussianMixtureAlignment) are
-    # the internals the core builds on; @recipe, Theme, plot! (MakieCore) are the
-    # recipe interface and Color, colortype (MolecularGraph) the color plumbing
-    # the extension builds on — the same coupling Aqua's piracy check exempts.
-    # The two public-ness checks resolve "public" accurately only on Julia 1.11+,
-    # so they are gated by version; the other five checks run everywhere.
+    # ROCSAlignmentResult, centroid, distance, local_align, tanimoto
+    # (GaussianMixtureAlignment) are the internals the core builds on; @recipe,
+    # Theme, plot! (MakieCore) are the recipe interface and Color, colortype
+    # (MolecularGraph) the color plumbing the extension builds on — the same
+    # coupling Aqua's piracy check exempts. The two public-ness checks resolve
+    # "public" accurately only on Julia 1.11+, so they are gated by version; the
+    # other five checks run everywhere.
     test_explicit_imports(MolecularGaussians;
         all_explicit_imports_are_public = VERSION >= v"1.11" ?
-            (; ignore = (:AbstractIsotropicMultiGMM, :centroid, :distance,
-                         :local_align, :tanimoto, Symbol("@recipe"), :Theme,
-                         :plot!, :Color, :colortype)) : false,
+            (; ignore = (:AbstractIsotropicMultiGMM, :ROCSAlignmentResult, :centroid,
+                         :distance, :local_align, :tanimoto, Symbol("@recipe"),
+                         :Theme, :plot!, :Color, :colortype)) : false,
         all_qualified_accesses_are_public = VERSION >= v"1.11",
     )
 end

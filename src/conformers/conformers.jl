@@ -69,21 +69,25 @@ function align_conformers(xconfs::AbstractVector{<:G}, yconfs::AbstractVector{<:
     return bestx, besty, tform, bestxidx, bestyidx, bestolap
 end
 
+# Normalize each alignment backend's result to `(overlap, tform)`. Dispatch on the
+# result type, not on the align function's identity, so wrapped or anonymous align
+# functions work as long as they return one of the known result shapes.
+_overlap_tform(res::ROCSAlignmentResult) = (res.minimum, res.tform)
+_overlap_tform(res::Tuple) = (res[1], res[2])            # local_align
+_overlap_tform(res) = (res.upperbound, res.tform_params) # gogma_align / tiv_gogma_align
+
 function align_conformers(confs::AbstractVector{<:G}, template::L; alignfun = local_align, kwargs...) where {G<:PharmacophoreGMM, L<:AbstractIsotropicMultiGMM}
     bestconf = confs[1]
     bestidx = 1
     bestolap = Inf
     tform = identity
     for (i,conf) in enumerate(confs)
-        res = alignfun(conf, template)
-        min = typeof(alignfun) == typeof(rocs_align) ? res.minimum : 
-              typeof(alignfun) == typeof(local_align) ? res[1] : 
-              res.upperbound
+        min, restform = _overlap_tform(alignfun(conf, template))
         if min < bestolap
             bestconf = conf
             bestidx = i
             bestolap = min
-            tform = typeof(alignfun) == typeof(local_align) ? res[2] : res.tform_params
+            tform = restform
         end
     end
     return bestconf, tform, bestidx, bestolap
