@@ -74,6 +74,12 @@ function transform(pgmm::PharmacophoreGMM{N,T,K,G}, tform::AffineMap) where {N,T
     return PharmacophoreGMM{N,T,K,G}(newgmms, tform(pgmm.graph), pgmm.σfun, pgmm.ϕfun, pgmm.featuremaps)
 end
 
+# `public` is a soft keyword only on Julia 1.11+; guard so the module still
+# loads on the 1.10 LTS, where the declaration is simply absent.
+@static if VERSION >= v"1.11"
+    eval(Meta.parse("public transform"))
+end
+
 # descriptive display
 
 Base.show(io::IO, pgmm::PharmacophoreGMM) = println(io,

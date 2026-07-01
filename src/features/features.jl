@@ -25,6 +25,12 @@ function atoms_to_feature(mol::SDFMolGraph, nodeset; ϕfun = rocs_amplitude, σf
     return IsotropicGaussian(μ, σ, ϕ)
 end
 
+# `public` is a soft keyword only on Julia 1.11+; guard so the module still
+# loads on the 1.10 LTS, where the declaration is simply absent.
+@static if VERSION >= v"1.11"
+    eval(Meta.parse("public atoms_to_feature"))
+end
+
 function feature_maps(mol::SimpleMolGraph, fdefs::Vector{FeatureDef})
     featuremaps = Dict{Symbol,Vector{Vector{Int}}}()
     for fdef in fdefs

@@ -47,7 +47,7 @@ Base.@deprecate Base.:-(x::AtomType, y::String) smarts_andnot(x, y) false
 # `public` is a soft keyword only on Julia 1.11+; guard so the module still
 # loads on the 1.10 LTS, where the declaration is simply absent.
 @static if VERSION >= v"1.11"
-    eval(Meta.parse("public smarts_or, smarts_andnot"))
+    eval(Meta.parse("public smarts_or, smarts_andnot, FamilyDef"))
 end
 
 
