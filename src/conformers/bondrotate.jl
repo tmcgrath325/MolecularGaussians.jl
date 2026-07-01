@@ -53,7 +53,7 @@ function rotate_edge!(graph::SDFMolGraph, edge, angle)
     rs = RotatableSubgraph(graph, edge)
     tform = angleaxis_rotation(angle, rs.axis, rs.origin)
     for i in rs.vlist
-        graph.vprops[i] = transformed(tform, props(graph, i))
+        set_prop!(graph, i, transformed(tform, props(graph, i)))
     end
     return graph
 end

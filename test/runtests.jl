@@ -9,7 +9,7 @@ using Aqua
 using ExplicitImports
 using MakieCore   # triggers the MolecularGaussiansMakieCoreExt package extension
 
-using Graphs: induced_subgraph
+using Graphs: induced_subgraph, edges, vertices, connected_components, rem_edge!
 using GaussianMixtureAlignment: distance
 using MolecularGaussians: nodeset
 
@@ -108,6 +108,26 @@ end
     pgmm_tr = MG.transform(pgmm, tr)
     @test all(props(pgmm_lin.graph, i).coords ≈ lin(props(mol, i).coords) for i in keys(mol.vprops))
     @test all(props(pgmm_tr.graph, i).coords ≈ tr(props(mol, i).coords) for i in keys(mol.vprops))
+end
+
+@testset "rotate_edge" begin
+    mol = sdftomol(joinpath(@__DIR__, "..", "assets", "data", "E1050_3d.sdf"))
+    remove_hydrogens!(mol)
+    orig = Dict(i => copy(props(mol, i).coords) for i in vertices(mol))
+    # A rotatable bond: removing it splits the molecule into two components. Ring
+    # bonds do not, and rotate_edge throws an ArgumentError for them.
+    splits_in_two(e) = (g = deepcopy(mol); rem_edge!(g, e); length(connected_components(g)) == 2)
+    edge = first(Iterators.filter(splits_in_two, edges(mol)))
+    # rotate_edge (non-mutating) leaves the source graph untouched
+    rotated = MG.rotate_edge(mol, edge, 0.7)
+    @test all(props(mol, i).coords == orig[i] for i in vertices(mol))
+    # the smaller side of the bond moves; a full turn returns to the start
+    @test any(!(props(rotated, i).coords ≈ orig[i]) for i in vertices(mol))
+    @test all(props(MG.rotate_edge(mol, edge, 2π), i).coords ≈ orig[i] for i in vertices(mol))
+    # rotate_edge! mutates the graph in place through the public set_prop! path
+    g = deepcopy(mol)
+    MG.rotate_edge!(g, edge, 0.7)
+    @test any(!(props(g, i).coords ≈ orig[i]) for i in vertices(mol))
 end
 
 @testset "SMARTS atom-type combinators" begin

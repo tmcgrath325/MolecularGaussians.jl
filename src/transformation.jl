@@ -12,6 +12,9 @@ function transformed(tform, a::SDFAtom)
 end
 
 function transformed(tform, mol::SDFMolGraph)
-    newvprops = Dict(i => transformed(tform, a) for (i, a) in mol.vprops)
-    return SDFMolGraph(mol.graph, newvprops, mol.eprops, mol.gprops, mol.state, mol.edge_rank)
+    newmol = deepcopy(mol)
+    for i in vertices(newmol)
+        set_prop!(newmol, i, transformed(tform, props(mol, i)))
+    end
+    return newmol
 end
