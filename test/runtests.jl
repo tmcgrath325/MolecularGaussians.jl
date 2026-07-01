@@ -170,6 +170,17 @@ end
     @test parse_feature_definitions(SubString(defpath)) isa MG.FamilyDef
 end
 
+@testset "malformed .fdef raises ArgumentError" begin
+    # A negated atom type that references an undefined atom type is invalid input;
+    # the parser reports it as an ArgumentError naming the offending type and line.
+    mktemp() do path, io
+        write(io, "AtomType !Undefined [#6]\n")
+        close(io)
+        @test_throws ArgumentError parse_feature_definitions(path)
+        @test_throws "undefined atom type :Undefined" parse_feature_definitions(path)
+    end
+end
+
 @testset "compact show is newline-free" begin
     mol = sdftomol(joinpath(@__DIR__, "..", "assets", "data", "E1050_3d.sdf"))
     remove_hydrogens!(mol)

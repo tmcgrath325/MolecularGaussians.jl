@@ -40,13 +40,15 @@ function parse_atomtype!(parser::FeatureDefParser)
     negater = first(parser.words[2]) == '!'
     if negater
         atomname = Symbol(parser.words[2][2:end])
-        @assert haskey(parser.atomtypes, atomname)
+        haskey(parser.atomtypes, atomname) ||
+            throw(ArgumentError("negated atom type \"$(parser.words[2])\" refers to undefined atom type :$atomname in line: $(parser.line)"))
     end
     smarts = substitute_atom_types(parser.words[3], parser.atomtypes)
     while last(parser.line) == '\\'
         smarts = chop(smarts)
         read_line!(parser)
-        @assert parser.words[1] == parser.line
+        parser.words[1] == parser.line ||
+            throw(ArgumentError("SMARTS continuation line must be a single token with no surrounding or internal whitespace, got: $(parser.line)"))
         smarts = smarts * substitute_atom_types(parser.line, parser.atomtypes)
     end
     if haskey(parser.atomtypes, atomname)
@@ -64,7 +66,8 @@ function parse_featuredef!(parser::FeatureDefParser)
     while last(parser.line) == '\\'
         smarts = chop(smarts)
         read_line!(parser)
-        @assert parser.words[1] == parser.line
+        parser.words[1] == parser.line ||
+            throw(ArgumentError("SMARTS continuation line must be a single token with no surrounding or internal whitespace, got: $(parser.line)"))
         smarts = smarts * substitute_atom_types(parser.line, parser.atomtypes)
     end
     read_line!(parser)
