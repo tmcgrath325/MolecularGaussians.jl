@@ -56,6 +56,16 @@ end
     @test pgmm_fm.feature_maps == fm
 end
 
+@testset "atoms_to_feature defaults" begin
+    mol = sdftomol(joinpath(@__DIR__, "..", "assets", "data", "E1050_3d.sdf"))
+    remove_hydrogens!(mol)
+    nodes = collect(nodeset(mol))
+    # The documented defaults (ϕfun=rocs_volume_amplitude, σfun=vdw_volume_sigma)
+    # build an IsotropicGaussian for both a single-atom and a multi-atom nodeset.
+    @test MG.atoms_to_feature(mol, nodes[1:1]) isa MG.IsotropicGaussian
+    @test MG.atoms_to_feature(mol, nodes[1:3]) isa MG.IsotropicGaussian
+end
+
 @testset "PharmacophoreGMM alignment" begin
     ## PharmacophoreGMM alignment
     mol1 = sdftomol(joinpath(@__DIR__, "..", "assets", "data", "E1050_3d.sdf"))

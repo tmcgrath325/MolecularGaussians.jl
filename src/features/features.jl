@@ -1,5 +1,5 @@
 """
-    feat = atoms_to_feature(mol::SDFMolGraph, nodeset; ϕfun=rocs_amplitude, σfun=vdw_volume_sigma)
+    feat = atoms_to_feature(mol::SDFMolGraph, nodeset; ϕfun=rocs_volume_amplitude, σfun=vdw_volume_sigma)
 
 Combine the atoms of `mol` indexed by `nodeset` into a single non-directional
 `IsotropicGaussian` feature centered at their centroid.
@@ -10,7 +10,7 @@ directly. For several atoms, `ϕ` is the mean of `ϕfun` over them and `σ` is
 derived from their van der Waals radii via the combined sphere volume (`σfun` is
 not consulted in this case).
 """
-function atoms_to_feature(mol::SDFMolGraph, nodeset; ϕfun = rocs_amplitude, σfun = vdw_volume_sigma)
+function atoms_to_feature(mol::SDFMolGraph, nodeset; ϕfun = rocs_volume_amplitude, σfun = vdw_volume_sigma)
     if length(nodeset)==1
         atom = props(mol, only(nodeset))
         μ = atom.coords
