@@ -10,7 +10,7 @@ using ExplicitImports
 using MakieCore   # triggers the MolecularGaussiansMakieCoreExt package extension
 using OffsetArrays: OffsetArray
 
-using Graphs: induced_subgraph, edges, vertices, connected_components, rem_edge!
+using Graphs: induced_subgraph, edges, vertices, connected_components, rem_edge!, neighbors
 using GaussianMixtureAlignment: distance
 using MolecularGaussians: nodeset
 
@@ -112,6 +112,10 @@ end
     received[] = :unset
     MG.align_conformers(confs, [y]; alignfun = stub, myopt = 7)
     @test received[] == 7
+    # gogma_align / tiv_gogma_align report their overlap and transform in
+    # `upperbound` / `tform_params`; the fallback _overlap_tform normalizes that
+    # shape (checked directly to avoid running the slow global optimizer).
+    @test MG._overlap_tform((upperbound = 3.5, tform_params = ntuple(zero, 6))) == (3.5, ntuple(zero, 6))
 end
 
 @testset "coordinate transforms" begin
@@ -137,6 +141,17 @@ end
     @test all(props(pgmm_tr.graph, i).coords ≈ tr(props(mol, i).coords) for i in keys(mol.vprops))
 end
 
+@testset "PharmacophoreGMM arithmetic" begin
+    mol = sdftomol(joinpath(@__DIR__, "..", "assets", "data", "E1050_3d.sdf"))
+    remove_hydrogens!(mol)
+    pgmm = PharmacophoreGMM(mol)
+    t = SVector(1.0, 2.0, 3.0)
+    # Subtracting a translation is adding its negation.
+    @test distance(pgmm - t, pgmm + (-t)) < 1e-12
+    # Translating away from and back to the origin recovers the original model.
+    @test distance((pgmm + t) - t, pgmm) < 1e-12
+end
+
 @testset "rotate_edge" begin
     mol = sdftomol(joinpath(@__DIR__, "..", "assets", "data", "E1050_3d.sdf"))
     remove_hydrogens!(mol)
@@ -155,6 +170,53 @@ end
     g = deepcopy(mol)
     MG.rotate_edge!(g, edge, 0.7)
     @test any(!(props(g, i).coords ≈ orig[i]) for i in vertices(mol))
+    # A ring bond does not split the graph in two; rotating about it is undefined.
+    ringbond = first(Iterators.filter(!splits_in_two, edges(mol)))
+    @test_throws "does not generate two disjoint subgraphs" MG.rotate_edge(mol, ringbond, 0.7)
+end
+
+@testset "conformer generation" begin
+    mol = sdftomol(joinpath(@__DIR__, "..", "assets", "data", "E1050_3d.sdf"))
+    remove_hydrogens!(mol)
+    orig = Dict(i => copy(props(mol, i).coords) for i in vertices(mol))
+    # rotatablebonds finds the rotatable, non-terminal bonds; rotablesubgraphs
+    # wraps each as the RotatableSubgraph that would move if it were rotated.
+    rbonds = MG.rotatablebonds(mol)
+    @test !isempty(rbonds)
+    @test length(MG.rotablesubgraphs(mol)) == length(rbonds)
+
+    # With ignoreH=false, a node is terminal iff it has exactly one neighbor.
+    term = first(i for i in vertices(mol) if length(neighbors(mol, i)) == 1)
+    inner = first(i for i in vertices(mol) if length(neighbors(mol, i)) > 1)
+    @test MG.isterminalnode(mol, term, false)
+    @test !MG.isterminalnode(mol, inner, false)
+
+    # conformers enumerates the angle grid over (at most maxbonds) rotatable bonds:
+    # `length(lower:step:upper) ^ nbonds` structures. With step=π over [-π, π) that
+    # is 2 angles per bond, so a single bond yields 2 conformers.
+    confs = MG.conformers(mol; step = π, maxbonds = 1)
+    @test length(confs) == 2
+    @test all(c isa MolecularGraph.SDFMolGraph for c in confs)
+    @test any(any(!(props(c, i).coords ≈ orig[i]) for i in vertices(mol)) for c in confs)
+
+    # rotate_edges applies a sequence of per-bond rotations; the bang form mutates,
+    # the plain form leaves the source untouched.
+    twobonds = rbonds[1:2]
+    rotated = MG.rotate_edges(mol, twobonds, [0.5, 0.7])
+    @test all(props(mol, i).coords == orig[i] for i in vertices(mol))
+    @test any(!(props(rotated, i).coords ≈ orig[i]) for i in vertices(mol))
+    g = deepcopy(mol)
+    MG.rotate_edges!(g, twobonds, [0.5, 0.7])
+    @test all(props(g, i).coords ≈ props(rotated, i).coords for i in vertices(mol))
+
+    # angleaxis_rotate_coords/_graph rotate about an explicit axis through an origin;
+    # a full turn about the z-axis returns every atom to its start.
+    zaxis = SVector(0.0, 0.0, 1.0)
+    turned = MG.angleaxis_rotate_graph(mol, 2π, zaxis, SVector(0.0, 0.0, 0.0))
+    @test turned isa MolecularGraph.SDFMolGraph
+    @test all(props(turned, i).coords ≈ orig[i] for i in vertices(mol))
+    atom = MG.angleaxis_rotate_coords(2π, zaxis, SVector(0.0, 0.0, 0.0), props(mol, 1))
+    @test atom.coords ≈ props(mol, 1).coords
 end
 
 @testset "SMARTS atom-type combinators" begin
@@ -206,6 +268,48 @@ end
         @test_throws ArgumentError parse_feature_definitions(path)
         @test_throws "undefined atom type :Undefined" parse_feature_definitions(path)
     end
+end
+
+@testset ".fdef line continuation and bad lines" begin
+    # Parse a .fdef written to a temporary file.
+    parsefdef(content) = mktemp() do path, io
+        write(io, content); close(io)
+        return parse_feature_definitions(path)
+    end
+    # A trailing backslash continues a SMARTS onto the next line, which must be a
+    # single whitespace-free token; the two pieces are concatenated.
+    fdef = parsefdef("""
+    AtomType Carbon [#6]\\
+    [R]
+    DefineFeature Cring [{Carbon}]\\
+    [!H0]
+      Family Rings
+      Weights 1.0,2.0
+    EndFeature
+    """)
+    @test MG.smarts(fdef.atomtypes[:Carbon]) == "[\$([#6][R])]"
+    @test fdef.features[:Cring].family == :Rings
+    @test fdef.features[:Cring].weights == [1.0, 2.0]
+    # A continuation line carrying extra whitespace-separated tokens is rejected.
+    @test_throws "continuation line must be a single token" parsefdef("AtomType Carbon [#6]\\\n[R] oops\n")
+    # An unrecognized top-level keyword, and an unrecognized line inside a feature
+    # block, are both reported as "bad input line for feature".
+    @test_throws "bad input line for feature: BogusKeyword" parsefdef("BogusKeyword a b\n")
+    @test_throws "bad input line for feature: BogusInner" parsefdef("DefineFeature F [#6]\n  BogusInner x\nEndFeature\n")
+end
+
+@testset "feature_maps merges shared families" begin
+    mol = sdftomol(joinpath(@__DIR__, "..", "assets", "data", "E1050_3d.sdf"))
+    remove_hydrogens!(mol)
+    # Two FeatureDefs assigned the same family are merged into one map entry whose
+    # match list is the concatenation of the individual queries' matches.
+    carbon = MG.FeatureDef("[#6]", :Heavy, [1.0])
+    oxygen = MG.FeatureDef("[#8]", :Heavy, [1.0])
+    merged = feature_maps(mol, [carbon, oxygen])
+    @test collect(keys(merged)) == [:Heavy]
+    ncarbon = length(feature_maps(mol, [carbon])[:Heavy])
+    noxygen = length(feature_maps(mol, [oxygen])[:Heavy])
+    @test length(merged[:Heavy]) == ncarbon + noxygen
 end
 
 @testset "compact show is newline-free" begin
