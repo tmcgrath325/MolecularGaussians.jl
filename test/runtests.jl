@@ -8,6 +8,7 @@ using Test
 using Aqua
 using ExplicitImports
 using MakieCore   # triggers the MolecularGaussiansMakieCoreExt package extension
+using OffsetArrays: OffsetArray
 
 using Graphs: induced_subgraph, edges, vertices, connected_components, rem_edge!
 using GaussianMixtureAlignment: distance
@@ -230,6 +231,39 @@ end
     ext = Base.get_extension(MolecularGaussians, :MolecularGaussiansMakieCoreExt)
     @test ext !== nothing
     @test !isempty(methods(MG.pharmacophoredisplay))
+end
+
+@testset "generic axes" begin
+    # These functions annotate their array arguments as AbstractVector, promising
+    # to work for any array. The result must depend only on the values, not on how
+    # the collection is indexed: wrapping an input in an offset axis or a view must
+    # leave the output unchanged. Their outputs (a feature-map Dict, a single
+    # Gaussian) are not index-matched to any input, so only value-invariance is
+    # asserted, not output axes.
+    mol = sdftomol(joinpath(@__DIR__, "..", "assets", "data", "E1050_3d.sdf"))
+    remove_hydrogens!(mol)
+
+    # feature_maps(mol, fdefs): the vector of FeatureDefs is iterated, not indexed.
+    fdefs = [MG.FeatureDef("[#6]", :Carbon, [1.0]), MG.FeatureDef("[#8]", :Oxygen, [1.0])]
+    ref = feature_maps(mol, fdefs)
+    @test feature_maps(mol, OffsetArray(fdefs, -3)) == ref
+    @test feature_maps(mol, view(fdefs, :)) == ref
+
+    # feature_maps(mol, familydef, families): the vector of family symbols likewise.
+    families = [:Volume, :Donor]
+    ref = feature_maps(mol, FAMILY_DEFS, families)
+    @test feature_maps(mol, FAMILY_DEFS, OffsetArray(families, -3)) == ref
+    @test feature_maps(mol, FAMILY_DEFS, view(families, :)) == ref
+
+    # atoms_to_feature(mol, nodeset): the node-index collection is iterated to build
+    # one Gaussian, for both the single-atom and multi-atom branches.
+    nodes = collect(nodeset(mol))
+    gausseq(a, b) = a.μ ≈ b.μ && a.σ ≈ b.σ && a.ϕ ≈ b.ϕ
+    for ns in (nodes[1:1], nodes[1:4])
+        ref = MG.atoms_to_feature(mol, ns)
+        @test gausseq(MG.atoms_to_feature(mol, OffsetArray(ns, -3)), ref)
+        @test gausseq(MG.atoms_to_feature(mol, view(ns, :)), ref)
+    end
 end
 
 @testset "Aqua" begin

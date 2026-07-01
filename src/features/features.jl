@@ -63,6 +63,6 @@ function feature_maps(mol::SimpleMolGraph, fdefs::AbstractVector{<:FeatureDef})
 end
 
 function feature_maps(mol::SimpleMolGraph, familydef::FamilyDef, families::AbstractVector{Symbol}=collect(keys(familydef.families)))
-    fdefs = reduce(vcat, [[familydef.features[name] for name in familydef.families[family]] for family in families])
+    fdefs = [familydef.features[name] for family in families for name in familydef.families[family]]
     return feature_maps(mol, fdefs)
 end
