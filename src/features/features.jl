@@ -32,7 +32,7 @@ end
     eval(Meta.parse("public atoms_to_feature"))
 end
 
-function feature_maps(mol::SimpleMolGraph, fdefs::Vector{FeatureDef})
+function feature_maps(mol::SimpleMolGraph, fdefs::AbstractVector{<:FeatureDef})
     featuremaps = Dict{Symbol,Vector{Vector{Int}}}()
     for fdef in fdefs
         query = smartstomol(smarts(fdef))
@@ -62,7 +62,7 @@ function feature_maps(mol::SimpleMolGraph, fdefs::Vector{FeatureDef})
     return featuremaps
 end
 
-function feature_maps(mol::SimpleMolGraph, familydef::FamilyDef, families::Vector{Symbol}=collect(keys(familydef.families)))
+function feature_maps(mol::SimpleMolGraph, familydef::FamilyDef, families::AbstractVector{Symbol}=collect(keys(familydef.families)))
     fdefs = reduce(vcat, [[familydef.features[name] for name in familydef.families[family]] for family in families])
     return feature_maps(mol, fdefs)
 end

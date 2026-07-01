@@ -104,6 +104,28 @@ end
     @test (@test_deprecated a - b).smarts == MG.smarts_andnot(a, b).smarts
 end
 
+@testset "widened argument annotations" begin
+    s = SubString("XA", 2)   # "A" as a SubString{String}
+    # AtomType and the smarts combinators accept any AbstractString
+    @test AtomType(s; wrap=false).smarts == "A"
+    @test MG.smarts_or(AtomType("A"; wrap=false), s).smarts == "A,\$(A)"
+    @test MG.smarts_andnot(AtomType("A"; wrap=false), s).smarts == "!\$(A);A"
+    # FeatureDef accepts an AbstractString and an AbstractVector{<:Real}; its
+    # fields are coerced to String / Vector{Float64} in the inner constructor.
+    fd = MG.FeatureDef(s, :Carbon, view([1, 2, 3], 1:2))
+    @test fd.smarts isa String && fd.smarts == "A"
+    @test fd.weights isa Vector{Float64} && fd.weights == [1.0, 2.0]
+    # feature_maps accepts AbstractVector arguments (views of fdefs / families)
+    mol = sdftomol(joinpath(@__DIR__, "..", "assets", "data", "E1050_3d.sdf"))
+    remove_hydrogens!(mol)
+    carbondefs = [MG.FeatureDef("[#6]", :Carbon, [1.0])]
+    @test haskey(feature_maps(mol, view(carbondefs, 1:1)), :Carbon)
+    @test haskey(feature_maps(mol, FAMILY_DEFS, view([:Volume, :Donor], 1:1)), :Volume)
+    # parse_feature_definitions accepts a SubString path
+    defpath = joinpath(@__DIR__, "..", "assets", "const", "FeatureDefinitions.fdef")
+    @test parse_feature_definitions(SubString(defpath)) isa MG.FamilyDef
+end
+
 @testset "MakieCore extension" begin
     # Loading MakieCore (at the top of this file) must activate the extension,
     # which supplies the pharmacophoredisplay method.

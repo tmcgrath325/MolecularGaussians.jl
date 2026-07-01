@@ -5,7 +5,7 @@ mutable struct FeatureDefParser
     const atomtypes::Dict{Symbol,AtomType}
     const features::Dict{Symbol,FeatureDef}
     const families::Dict{Symbol,Vector{Symbol}}
-    function FeatureDefParser(path::String)
+    function FeatureDefParser(path::AbstractString)
         lineiter = Iterators.Stateful(eachline(path))
         line = ""
         words = SubString{String}[]
@@ -16,7 +16,7 @@ mutable struct FeatureDefParser
     end
 end
 
-parse_feature_definitions(path::String = joinpath(dirname(@__FILE__), "../../assets/const/FeatureDefinitions.fdef")) = parse_feature_definitions!(FeatureDefParser(path))
+parse_feature_definitions(path::AbstractString = joinpath(dirname(@__FILE__), "../../assets/const/FeatureDefinitions.fdef")) = parse_feature_definitions!(FeatureDefParser(path))
 
 function parse_feature_definitions!(parser::FeatureDefParser)
     while(!isempty(parser.lineiter))
