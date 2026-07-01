@@ -1,13 +1,14 @@
 """
-    feat = atoms_to_feature(atoms, dirs=nothing)
+    feat = atoms_to_feature(mol::SDFMolGraph, nodeset; ϕfun=rocs_amplitude, σfun=vdw_volume_sigma)
 
-Combines Gaussian distributions specified by `atoms` to create a feature repressented by a 
-single Gaussian. The feature is centered at the center of mass of the distributions, and the
-width `σ` of the feature is the average of the distance of individual features from the center 
-added to their widths.
+Combine the atoms of `mol` indexed by `nodeset` into a single non-directional
+`IsotropicGaussian` feature centered at their centroid.
 
-Geometric constraints for the feature can be specified by `dirs`. The returned feature has no
-direction by default.
+`ϕfun(atom)` gives an atom's amplitude and `σfun(atom, ϕ)` its width. For a
+single-atom `nodeset` the feature takes `ϕ = ϕfun(atom)` and `σ = σfun(atom, ϕ)`
+directly. For several atoms, `ϕ` is the mean of `ϕfun` over them and `σ` is
+derived from their van der Waals radii via the combined sphere volume (`σfun` is
+not consulted in this case).
 """
 function atoms_to_feature(mol::SDFMolGraph, nodeset; ϕfun = rocs_amplitude, σfun = vdw_volume_sigma)
     if length(nodeset)==1
