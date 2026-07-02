@@ -8,7 +8,7 @@ import Base: eltype
 A labeled isotropic Gaussian mixture built from a molecule. Every Gaussian in
 `gaussians` carries a parallel feature label in `labels`, so overlap between two
 `PharmacophoreGMM`s is restricted to Gaussian pairs whose labels interact (by
-default, only equal labels; see [`overlap`](@ref) for the `interactions`
+default, only equal labels; see `overlap` for the `interactions`
 keyword). The two vectors have equal length.
 
 The molecular `graph` is kept alongside the labeled vectors so the molecule can
