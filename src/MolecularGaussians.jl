@@ -24,14 +24,14 @@ using Rotations: AngleAxis, RotMatrix
 using MolecularGraph: MolecularGraph, SDFAtom, SDFMolGraph, SimpleMolGraph, atomnumber, get_prop, is_rotatable, moldisplay, molecular_formula, props, set_prop!, smartstomol, substruct_matches
 using Graphs: Graphs, connected_components, edges, induced_subgraph, neighbors, vertices
 
-using GaussianMixtureAlignment: IsotropicGaussian, IsotropicGMM, AbstractIsotropicMultiGMM, ROCSAlignmentResult, centroid, local_align, rocs_align, gogma_align, tiv_gogma_align, overlap, distance, tanimoto
+using GaussianMixtureAlignment: IsotropicGaussian, AbstractGMM, AbstractLabeledIsotropicGMM, ROCSAlignmentResult, centroid, local_align, rocs_align, gogma_align, tiv_gogma_align, overlap, distance, tanimoto
 
 # The alignment functions default to AutoForwardDiff(); loading ForwardDiff
 # activates the DifferentiationInterface backend that default requires.
 import ForwardDiff
 
 export local_align, gogma_align, tiv_gogma_align, overlap, distance, tanimoto
-export PharmacophoreGMM
+export PharmacophoreGMM, feature_labels, bondrotate
 export rocs_align
 
 export AtomType, FeatureDef

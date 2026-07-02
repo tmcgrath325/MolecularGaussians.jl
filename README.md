@@ -53,12 +53,12 @@ Dict{Symbol, Vector{Vector{Int64}}} with 4 entries:
   :Aromatic     => [[22, 21, 20, 18, 24, 23]]
 
 julia> pgmm1 = PharmacophoreGMM(mol1; feature_maps=feature_maps1)
-PharmacophoreGMM{3, Float64, Symbol, SDFMolGraph} from molecule with formula C18H24O8S2 with 13 Gaussians in 4 GMMs with labels:
+PharmacophoreGMM{3, Float64, Symbol, SDFMolGraph} from molecule with formula C18H24O8S2 with 13 Gaussians labeled:
 [:Acceptor, :NegIonizable, :Donor, :Aromatic]
 
 
 julia> pgmm2 = PharmacophoreGMM(mol2; feature_maps=feature_maps2)
-PharmacophoreGMM{3, Float64, Symbol, SDFMolGraph} from molecule with formula C18H24O5S with 9 Gaussians in 4 GMMs with labels:
+PharmacophoreGMM{3, Float64, Symbol, SDFMolGraph} from molecule with formula C18H24O5S with 9 Gaussians labeled:
 [:Acceptor, :NegIonizable, :Donor, :Aromatic]
 ```
 

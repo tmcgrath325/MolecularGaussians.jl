@@ -13,8 +13,15 @@ MolecularGaussians
 ```@docs
 PharmacophoreGMM
 feature_maps
+feature_labels
 atoms_to_feature
 transform
+```
+
+## Bond rotation
+
+```@docs
+bondrotate
 ```
 
 ## Feature definitions

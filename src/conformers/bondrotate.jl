@@ -25,20 +25,25 @@ struct RotatableSubgraph{T}
 end
 
 function RotatableSubgraph(graph::SDFMolGraph, edge::Graphs.Edge)
-    # generate a subgraph after removing the specified edge, and obtain the nodes in each connected component
+    # remove the edge and locate the components that hold each of its endpoints.
+    # Only the endpoints' own component is split; any other components of a
+    # disconnected graph are untouched and irrelevant to this bond's rotation.
     newgraph = deepcopy(graph)
     Graphs.rem_edge!(newgraph, edge)
-    nodesets = connected_components(newgraph)
-    if length(nodesets) != 2
+    comps = connected_components(newgraph)
+    srci = findfirst(c -> edge.src ∈ c, comps)
+    dsti = findfirst(c -> edge.dst ∈ c, comps)
+    if srci == dsti
+        # the endpoints remain connected: the bond lies in a ring
         throw(ArgumentError("Removing the specified edge does not generate two disjoint subgraphs."))
     end
 
     # identify which side of the edge will be rotated (the side with fewer nodes)
-    sort!(nodesets; by=length)
+    nodesets = sort([comps[srci], comps[dsti]]; by=length)
     reverseedge = edge.src ∈ nodesets[2]
     proximalidx = reverseedge ? edge.dst : edge.src
     distalidx = reverseedge ? edge.src : edge.dst
-    
+
     proximalcoords = get_prop(graph, proximalidx, :coords)
     distalcoords = get_prop(graph, distalidx, :coords)
 
@@ -67,3 +72,45 @@ function rotate_edges!(graph::SDFMolGraph, edgeidxs, angles)
 end
 
 rotate_edges(graph, edgeidxs, angles) = rotate_edges!(deepcopy(graph), edgeidxs, angles)
+
+
+## rotation of a PharmacophoreGMM about one of its rotatable bonds
+
+"""
+    bondrotate(pgmm::PharmacophoreGMM, angle, bondidx::Int) -> PharmacophoreGMM
+    bondrotate(pgmm::PharmacophoreGMM, angles, bondidxs::AbstractVector{Int}) -> PharmacophoreGMM
+
+Rotate `pgmm` about its `bondidx`-th rotatable bond by `angle` radians, returning
+a new `PharmacophoreGMM`. The Gaussians the bond moves (`pgmm.bondtogaussians[bondidx]`)
+and the frames of the bonds downstream of it (`pgmm.bondtobonds[bondidx]`) are
+rotated about the bond's axis; every other Gaussian and bond frame is left in place.
+
+The stored `graph` is a rigid reference to the input conformer and is not updated
+by a bond rotation, so after `bondrotate` it no longer matches the moved Gaussians.
+
+The second form applies a sequence of rotations, `angles[k]` about `bondidxs[k]`,
+in order; each rotation acts on the result of the previous one.
+"""
+function bondrotate(pgmm::PharmacophoreGMM{N,T,K,G}, angle, axis, origin, rotatedgaussians, rotatedbonds) where {N,T,K,G}
+    tform = angleaxis_rotation(angle, axis, origin)
+    rot = RotMatrix(AngleAxis(angle, axis...))
+    newgaussians = IsotropicGaussian{N,T}[i ∈ rotatedgaussians ? tform(g) : g for (i,g) in enumerate(pgmm.gaussians)]
+    # axes are directions (rotate by the linear part only); origins are points
+    newaxes = SVector{N,T}[i ∈ rotatedbonds ? SVector{N,T}(rot*a) : a for (i,a) in enumerate(pgmm.axes)]
+    neworigins = SVector{N,T}[i ∈ rotatedbonds ? SVector{N,T}(tform(o)) : o for (i,o) in enumerate(pgmm.origins)]
+    return PharmacophoreGMM{N,T,K,G}(newgaussians, pgmm.labels, pgmm.graph, pgmm.σfun, pgmm.ϕfun,
+                                     pgmm.feature_maps, newaxes, neworigins, pgmm.bondtogaussians, pgmm.bondtobonds)
+end
+
+bondrotate(pgmm::PharmacophoreGMM, angle, bondidx::Int) =
+    bondrotate(pgmm, angle, pgmm.axes[bondidx], pgmm.origins[bondidx], pgmm.bondtogaussians[bondidx], pgmm.bondtobonds[bondidx])
+
+function bondrotate(pgmm::PharmacophoreGMM, angles, bondidxs::AbstractVector{Int})
+    length(angles) == length(bondidxs) ||
+        throw(DimensionMismatch("number of angles ($(length(angles))) must match number of bond indices ($(length(bondidxs)))"))
+    newpgmm = pgmm
+    for (angle, bondidx) in zip(angles, bondidxs)
+        newpgmm = bondrotate(newpgmm, angle, bondidx)
+    end
+    return newpgmm
+end

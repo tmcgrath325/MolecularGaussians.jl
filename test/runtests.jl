@@ -63,9 +63,87 @@ end
     fm = feature_maps(mol, FAMILY_DEFS, [:Volume])
     pgmm_fm = PharmacophoreGMM(mol; feature_maps = fm)
     @test pgmm_fm.feature_maps == fm
-    # the type-based eltype agrees with the instance-based one (no stray graph
-    # parameter leaking into the IsotropicGMM element type)
-    @test eltype(typeof(pgmm)) == eltype(pgmm) == Pair{Symbol, MG.IsotropicGMM{3,Float64}}
+    # the type-based eltype agrees with the instance-based one: a PharmacophoreGMM
+    # is a flat labeled GMM, so its element type is the Gaussian, not a keyed pair
+    @test eltype(typeof(pgmm)) == eltype(pgmm) == MG.IsotropicGaussian{3,Float64}
+end
+
+@testset "labeled PharmacophoreGMM" begin
+    mol = sdftomol(joinpath(@__DIR__, "..", "assets", "data", "E1050_3d.sdf"))
+    pgmm = PharmacophoreGMM(mol)
+    # a PharmacophoreGMM is a flat labeled GMM: one label per Gaussian.
+    @test length(pgmm.gaussians) == length(pgmm.labels) == length(pgmm)
+    @test feature_labels(pgmm) == [:Volume]
+    # the parallel-vector invariant is enforced at construction.
+    @test_throws DimensionMismatch MG.PharmacophoreGMM(pgmm.gaussians, [:Volume],
+        pgmm.graph, pgmm.σfun, pgmm.ϕfun, pgmm.feature_maps,
+        pgmm.axes, pgmm.origins, pgmm.bondtogaussians, pgmm.bondtobonds)
+    # self-overlap is a regression pin: identity-label interactions reproduce the
+    # per-family "only same-key GMMs score" overlap.
+    @test MG.overlap(pgmm, pgmm) ≈ 171.00457064028473 rtol=1e-10
+
+    # cross-label interactions are a new capability the per-family Dict design
+    # could not express: distinct families only overlap when paired explicitly.
+    fm = feature_maps(mol, FAMILY_DEFS, [:Donor, :Acceptor])
+    pg = PharmacophoreGMM(mol; feature_maps = fm)
+    same = MG.overlap(pg, pg)                                        # equal labels only
+    crossed = MG.overlap(pg, pg; interactions = Dict((:Donor, :Acceptor) => 1.0))
+    @test same != crossed
+end
+
+@testset "PharmacophoreGMM bond rotation" begin
+    mol = sdftomol(joinpath(@__DIR__, "..", "assets", "data", "E1050_3d.sdf"))
+    remove_hydrogens!(mol)
+    pgmm = PharmacophoreGMM(mol)
+    sgs = MG.rotablesubgraphs(mol)
+    # one bond frame per rotatable bond, and the four bond-geometry vectors agree
+    @test length(pgmm.axes) == length(sgs)
+    @test length(pgmm.axes) == length(pgmm.origins) == length(pgmm.bondtogaussians) == length(pgmm.bondtobonds)
+    # the bond-geometry length invariant is enforced at construction
+    @test_throws DimensionMismatch MG.PharmacophoreGMM(pgmm.gaussians, pgmm.labels,
+        pgmm.graph, pgmm.σfun, pgmm.ϕfun, pgmm.feature_maps,
+        pgmm.axes, pgmm.origins[1:end-1], pgmm.bondtogaussians, pgmm.bondtobonds)
+
+    # rigid=true records no rotatable bonds
+    rig = PharmacophoreGMM(mol; rigid = true)
+    @test isempty(rig.axes) && isempty(rig.bondtogaussians)
+
+    # a disconnected subgraph still builds: a rotatable bond splits only its own
+    # component (this molecule's first-half induced subgraph is disconnected)
+    submol, _ = induced_subgraph(mol, collect(nodeset(mol))[1:Int(floor(end/2))])
+    @test length(connected_components(submol)) > 1
+    @test PharmacophoreGMM(submol) isa PharmacophoreGMM
+
+    b = 1
+    rotated = bondrotate(pgmm, 0.7, b)
+    # exactly the Gaussians the bond maps to are moved; the rest are untouched
+    moved = [i for i in eachindex(pgmm.gaussians) if !(rotated.gaussians[i].μ ≈ pgmm.gaussians[i].μ)]
+    @test sort(moved) ⊆ sort(pgmm.bondtogaussians[b])
+    @test all(rotated.gaussians[i].μ == pgmm.gaussians[i].μ for i in eachindex(pgmm.gaussians) if i ∉ pgmm.bondtogaussians[b])
+    # self-overlap is maximal, so a bond rotation moves the model away from itself
+    @test MG.distance(rotated, pgmm) > 1e-6
+    # +θ then -θ recovers the original; a full turn is the identity
+    @test MG.distance(bondrotate(rotated, -0.7, b), pgmm) < 1e-10
+    @test MG.distance(bondrotate(pgmm, 2π, b), pgmm) < 1e-8
+
+    # rotating the GMM about a bond matches rebuilding it from the graph rotated
+    # about that bond's edge
+    θ = 0.9
+    rebuilt = PharmacophoreGMM(MG.rotate_edge(mol, sgs[b].edge, θ))
+    gmmrot = bondrotate(pgmm, θ, b)
+    @test all(gmmrot.gaussians[k].μ ≈ rebuilt.gaussians[k].μ for k in eachindex(pgmm.gaussians))
+
+    # the sequence form applies rotations in order; mismatched lengths are rejected
+    @test bondrotate(pgmm, [0.3, 0.4], [1, 2]) isa PharmacophoreGMM
+    @test_throws DimensionMismatch bondrotate(pgmm, [0.3], [1, 2])
+
+    # combineatoms=false gives one Gaussian per atom, so a multi-atom feature set
+    # yields more Gaussians than the combined (default) form
+    fm = feature_maps(mol, FAMILY_DEFS, [:Aromatic])
+    natoms = sum(sum(length, sets; init = 0) for sets in values(fm); init = 0)
+    @test any(length(set) > 1 for set in first(values(fm)))       # there is a multi-atom set
+    @test length(PharmacophoreGMM(mol; combineatoms = false, feature_maps = fm).gaussians) == natoms
+    @test length(PharmacophoreGMM(mol; feature_maps = fm).gaussians) < natoms
 end
 
 @testset "atoms_to_feature defaults" begin
@@ -385,18 +463,18 @@ end
 
 @testset "ExplicitImports" begin
     # `test_explicit_imports` also checks the MakieCore extension. The ignored
-    # names have no public API in their defining packages: AbstractIsotropicMultiGMM,
-    # ROCSAlignmentResult, centroid, distance, local_align, tanimoto
-    # (GaussianMixtureAlignment) are the internals the core builds on; @recipe,
-    # Theme, plot! (MakieCore) are the recipe interface and Color, colortype
-    # (MolecularGraph) the color plumbing the extension builds on — the same
-    # coupling Aqua's piracy check exempts. The two public-ness checks resolve
-    # "public" accurately only on Julia 1.11+, so they are gated by version; the
-    # other five checks run everywhere.
+    # names have no public API in their defining packages: AbstractGMM,
+    # AbstractLabeledIsotropicGMM, ROCSAlignmentResult, centroid, distance,
+    # local_align, tanimoto (GaussianMixtureAlignment) are the internals the core
+    # builds on; @recipe, Theme, plot! (MakieCore) are the recipe interface and
+    # Color, colortype (MolecularGraph) the color plumbing the extension builds
+    # on — the same coupling Aqua's piracy check exempts. The two public-ness
+    # checks resolve "public" accurately only on Julia 1.11+, so they are gated by
+    # version; the other five checks run everywhere.
     test_explicit_imports(MolecularGaussians;
         all_explicit_imports_are_public = VERSION >= v"1.11" ?
-            (; ignore = (:AbstractIsotropicMultiGMM, :ROCSAlignmentResult, :centroid,
-                         :distance, :local_align, :tanimoto, Symbol("@recipe"),
+            (; ignore = (:AbstractGMM, :AbstractLabeledIsotropicGMM, :ROCSAlignmentResult,
+                         :centroid, :distance, :local_align, :tanimoto, Symbol("@recipe"),
                          :Theme, :plot!, :Color, :colortype)) : false,
         all_qualified_accesses_are_public = VERSION >= v"1.11",
     )

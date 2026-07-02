@@ -27,9 +27,10 @@ julia> using Pkg; Pkg.add("MolecularGaussians")
 
 ## Building GMMs from molecules
 
-A [`PharmacophoreGMM`](@ref) holds one `IsotropicGMM` per pharmacophore family.
-The families are chosen by a [`feature_maps`](@ref) dictionary, which
-[`parse_feature_definitions`](@ref) derives from bundled SMARTS definitions.
+A [`PharmacophoreGMM`](@ref) holds one labeled `IsotropicGaussian` per feature,
+each tagged with its pharmacophore family. The families are chosen by a
+[`feature_maps`](@ref) dictionary, which [`parse_feature_definitions`](@ref)
+derives from bundled SMARTS definitions.
 
 ```jldoctest quickstart
 julia> datadir = joinpath(pkgdir(MolecularGaussians), "assets", "data");
@@ -43,11 +44,11 @@ julia> familydefs = parse_feature_definitions();
 julia> families = [:Donor, :Acceptor, :Aromatic, :NegIonizable];
 
 julia> pgmm1 = PharmacophoreGMM(mol1; feature_maps = feature_maps(mol1, familydefs, families))
-PharmacophoreGMM{3, Float64, Symbol, SDFMolGraph} from molecule with formula C18H24O8S2 with 13 Gaussians in 4 GMMs with labels:
+PharmacophoreGMM{3, Float64, Symbol, SDFMolGraph} from molecule with formula C18H24O8S2 with 13 Gaussians labeled:
 [:Acceptor, :NegIonizable, :Donor, :Aromatic]
 
 julia> pgmm2 = PharmacophoreGMM(mol2; feature_maps = feature_maps(mol2, familydefs, families))
-PharmacophoreGMM{3, Float64, Symbol, SDFMolGraph} from molecule with formula C18H24O5S with 9 Gaussians in 4 GMMs with labels:
+PharmacophoreGMM{3, Float64, Symbol, SDFMolGraph} from molecule with formula C18H24O5S with 9 Gaussians labeled:
 [:Acceptor, :NegIonizable, :Donor, :Aromatic]
 ```
 
