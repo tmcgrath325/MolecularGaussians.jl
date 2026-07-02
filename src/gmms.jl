@@ -14,6 +14,12 @@ keyword). The two vectors have equal length.
 The molecular `graph` is kept alongside the labeled vectors so the molecule can
 still be drawn and its formula reported. `σfun`, `ϕfun`, and `feature_maps`
 record how the Gaussians were built.
+
+The model also carries the geometry of its rotatable bonds so it can be flexed
+without the graph (see [`bondrotate`](@ref)). `axes[b]` and `origins[b]` are the
+direction and a point on the `b`-th bond's rotation axis; `bondtogaussians[b]`
+lists the Gaussians that bond moves and `bondtobonds[b]` the bonds downstream of
+it. These four vectors have equal length (one entry per rotatable bond).
 """
 struct PharmacophoreGMM{N,T<:Real,K,G<:SimpleMolGraph} <: AbstractLabeledIsotropicGMM{N,T,K}
     gaussians::Vector{IsotropicGaussian{N,T}}
@@ -22,16 +28,25 @@ struct PharmacophoreGMM{N,T<:Real,K,G<:SimpleMolGraph} <: AbstractLabeledIsotrop
     σfun::Function
     ϕfun::Function
     feature_maps::Dict{K, Vector{Vector{Int}}}
-    function PharmacophoreGMM{N,T,K,G}(gaussians, labels, graph, σfun, ϕfun, feature_maps) where {N,T,K,G}
+    axes::Vector{SVector{N,T}}
+    origins::Vector{SVector{N,T}}
+    bondtogaussians::Vector{Vector{Int}}
+    bondtobonds::Vector{Vector{Int}}
+    function PharmacophoreGMM{N,T,K,G}(gaussians, labels, graph, σfun, ϕfun, feature_maps,
+                                       axes, origins, bondtogaussians, bondtobonds) where {N,T,K,G}
         length(gaussians) == length(labels) ||
             throw(DimensionMismatch("number of Gaussians ($(length(gaussians))) must match number of labels ($(length(labels)))"))
-        return new{N,T,K,G}(gaussians, labels, graph, σfun, ϕfun, feature_maps)
+        length(axes) == length(origins) == length(bondtogaussians) == length(bondtobonds) ||
+            throw(DimensionMismatch("bond-geometry vectors (axes, origins, bondtogaussians, bondtobonds) must have equal length"))
+        return new{N,T,K,G}(gaussians, labels, graph, σfun, ϕfun, feature_maps, axes, origins, bondtogaussians, bondtobonds)
     end
 end
 
 function PharmacophoreGMM(gaussians::AbstractVector{IsotropicGaussian{N,T}}, labels::AbstractVector{K},
-                          graph::G, σfun, ϕfun, feature_maps) where {N,T,K,G<:SimpleMolGraph}
-    return PharmacophoreGMM{N,T,K,G}(gaussians, labels, graph, σfun, ϕfun, feature_maps)
+                          graph::G, σfun, ϕfun, feature_maps,
+                          axes, origins, bondtogaussians, bondtobonds) where {N,T,K,G<:SimpleMolGraph}
+    return PharmacophoreGMM{N,T,K,G}(gaussians, labels, graph, σfun, ϕfun, feature_maps,
+                                     axes, origins, bondtogaussians, bondtobonds)
 end
 
 eltype(::Type{PharmacophoreGMM{N,T,K,G}}) where {N,T,K,G} = IsotropicGaussian{N,T}
@@ -44,16 +59,22 @@ Return the distinct feature labels present in `pgmm`, in first-appearance order.
 feature_labels(pgmm::PharmacophoreGMM) = unique(pgmm.labels)
 
 """
-    PharmacophoreGMM(mol; σfun=vdw_volume_sigma, ϕfun=a->one(typeof(vdw_radius(a))), feature_maps=…)
+    PharmacophoreGMM(mol; combineatoms=true, rigid=false,
+                          σfun=vdw_volume_sigma, ϕfun=a->one(typeof(vdw_radius(a))),
+                          feature_maps=…)
 
-Build a `PharmacophoreGMM` from a molecule or subgraph `mol`: one labeled
-`IsotropicGaussian` per molecular-feature set named in `feature_maps`.
+Build a `PharmacophoreGMM` from a molecule or subgraph `mol`: one or more labeled
+`IsotropicGaussian`s per molecular-feature set named in `feature_maps`.
 
-`feature_maps` maps each feature family (a `Symbol`) to a list of node-index sets; each
-set is collapsed into a single `IsotropicGaussian` feature by `atoms_to_feature` and
-labeled with its family. By default it places one single-atom `:Volume` feature on every
-heavy atom of `mol`. `feature_maps` derives pharmacophore families (donors, acceptors,
-rings, …) from feature definitions.
+`feature_maps` maps each feature family (a `Symbol`) to a list of node-index sets. By
+default it places one single-atom `:Volume` feature on every heavy atom of `mol`;
+`feature_maps` derives pharmacophore families (donors, acceptors, rings, …) from feature
+definitions. With `combineatoms=true` (the default) each set is collapsed into a single
+`IsotropicGaussian` by `atoms_to_feature`; with `combineatoms=false` each atom of a set
+gets its own Gaussian, all sharing the set's family label.
+
+The model's rotatable bonds are detected automatically and their geometry recorded so it
+can be flexed by [`bondrotate`](@ref). Pass `rigid=true` to record no rotatable bonds.
 
 `ϕfun(atom)` gives an atom's amplitude and `σfun(atom, ϕ)` its width; see
 `atoms_to_feature` for how they combine over multi-atom feature sets.
@@ -69,35 +90,72 @@ PharmacophoreGMM{3, Float64, Symbol, SDFMolGraph} from molecule with formula C18
 ```
 """
 function PharmacophoreGMM(mol::SDFMolGraph;
+                          combineatoms = true,
+                          rigid = false,
                           σfun = vdw_volume_sigma,
                           ϕfun = a -> one(typeof(vdw_radius(a))),
                           feature_maps::Dict{K,Vector{Vector{Int}}} = Dict{Symbol,Vector{Vector{Int}}}(:Volume => [[i] for i in heavy_atom_idxs(mol)])) where K
     N = length(props(mol,1).coords)
     T = eltype(props(mol,1).coords)
+
+    # rotatable-bond frames and, per bond, the atoms and downstream bonds it moves
+    sgs = rigid ? RotatableSubgraph{T}[] : rotablesubgraphs(mol)
+    axes = SVector{N,T}[SVector{N,T}(sg.axis) for sg in sgs]
+    origins = SVector{N,T}[SVector{N,T}(sg.origin) for sg in sgs]
+    # a bond's endpoints lie on its rotation axis and so do not move; exclude them
+    bondtoatoms = [filter(a -> a != sg.edge.src && a != sg.edge.dst, sg.vlist) for sg in sgs]
+    bondtobonds = [findall(s -> s.edge.src ∈ sg.vlist && s.edge.dst ∈ sg.vlist, sgs) for sg in sgs]
+    bondtogaussians = [Int[] for _ in sgs]
+
     gaussians = IsotropicGaussian{N,T}[]
     labels = K[]
     for (feature, nodesets) in feature_maps
         for set in nodesets
-            push!(gaussians, atoms_to_feature(mol, set; σfun=σfun, ϕfun=ϕfun))
-            push!(labels, feature)
+            if combineatoms
+                push!(gaussians, atoms_to_feature(mol, set; σfun=σfun, ϕfun=ϕfun))
+                push!(labels, feature)
+                gidx = length(gaussians)
+                for (i, moved) in enumerate(bondtoatoms)
+                    # a combined feature follows the bond when most of its atoms move
+                    count(a -> a ∈ moved, set) >= length(set)/2 && push!(bondtogaussians[i], gidx)
+                end
+            else
+                for a in set
+                    push!(gaussians, atoms_to_feature(mol, [a]; σfun=σfun, ϕfun=ϕfun))
+                    push!(labels, feature)
+                    gidx = length(gaussians)
+                    for (i, moved) in enumerate(bondtoatoms)
+                        a ∈ moved && push!(bondtogaussians[i], gidx)
+                    end
+                end
+            end
         end
     end
-    return PharmacophoreGMM(gaussians, labels, mol, σfun, ϕfun, feature_maps)
+    return PharmacophoreGMM(gaussians, labels, mol, σfun, ϕfun, feature_maps,
+                            axes, origins, bondtogaussians, bondtobonds)
 end
 
 # GaussianMixtureAlignment's generic `*`/`+` on AbstractLabeledIsotropicGMM
 # return a bare LabeledIsotropicGMM, dropping the graph and feature metadata.
 # These methods keep the PharmacophoreGMM type and carry those fields through.
+# Bond `axes` are directions and `origins` are points: rotation moves both, but
+# translation shifts only the points.
 function  Base.:*(R::AbstractMatrix{W}, x::PharmacophoreGMM{N,V,K,G}) where {N,V,K,G,W}
     numtype = promote_type(V, W)
     gaussians = IsotropicGaussian{N,numtype}[R*g for g in x.gaussians]
-    return PharmacophoreGMM{N,numtype,K,G}(gaussians, x.labels, x.graph, x.σfun, x.ϕfun, x.feature_maps)
+    axes = SVector{N,numtype}[R*a for a in x.axes]
+    origins = SVector{N,numtype}[R*o for o in x.origins]
+    return PharmacophoreGMM{N,numtype,K,G}(gaussians, x.labels, x.graph, x.σfun, x.ϕfun, x.feature_maps,
+                                           axes, origins, x.bondtogaussians, x.bondtobonds)
 end
 
 function  Base.:+(x::PharmacophoreGMM{N,V,K,G}, T::AbstractVector{W}) where {N,V,K,G,W}
     numtype = promote_type(V, W)
     gaussians = IsotropicGaussian{N,numtype}[g+T for g in x.gaussians]
-    return PharmacophoreGMM{N,numtype,K,G}(gaussians, x.labels, x.graph, x.σfun, x.ϕfun, x.feature_maps)
+    axes = SVector{N,numtype}[a for a in x.axes]
+    origins = SVector{N,numtype}[o .+ T for o in x.origins]
+    return PharmacophoreGMM{N,numtype,K,G}(gaussians, x.labels, x.graph, x.σfun, x.ϕfun, x.feature_maps,
+                                           axes, origins, x.bondtogaussians, x.bondtobonds)
 end
 
 Base.:-(x::PharmacophoreGMM, T::AbstractVector) = x + (-T)
@@ -108,11 +166,16 @@ Base.:-(x::PharmacophoreGMM, T::AbstractVector) = x + (-T)
 Apply the transformation `tform` to every Gaussian of `pgmm` and to its
 underlying molecular graph, returning a new `PharmacophoreGMM`. `tform` is
 called as `tform(g)` on each `IsotropicGaussian` and must map a set of 3-D
-points rigidly (e.g. an `AffineMap` from CoordinateTransformations).
+points rigidly (e.g. an `AffineMap` from CoordinateTransformations). Bond
+`origins` are mapped as points and `axes` as directions (the transform's linear
+part), recovered as `tform(o + a) - tform(o)`.
 """
 function transform(pgmm::PharmacophoreGMM, tform)
     gaussians = [tform(g) for g in pgmm.gaussians]
-    return PharmacophoreGMM(gaussians, pgmm.labels, transformed(tform, pgmm.graph), pgmm.σfun, pgmm.ϕfun, pgmm.feature_maps)
+    origins = [tform(o) for o in pgmm.origins]
+    axes = [tform(o + a) - tform(o) for (o, a) in zip(pgmm.origins, pgmm.axes)]
+    return PharmacophoreGMM(gaussians, pgmm.labels, transformed(tform, pgmm.graph), pgmm.σfun, pgmm.ϕfun,
+                            pgmm.feature_maps, axes, origins, pgmm.bondtogaussians, pgmm.bondtobonds)
 end
 
 # `public` is a soft keyword only on Julia 1.11+; guard so the module still

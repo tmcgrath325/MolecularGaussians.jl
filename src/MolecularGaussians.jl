@@ -31,7 +31,7 @@ using GaussianMixtureAlignment: IsotropicGaussian, AbstractGMM, AbstractLabeledI
 import ForwardDiff
 
 export local_align, gogma_align, tiv_gogma_align, overlap, distance, tanimoto
-export PharmacophoreGMM, feature_labels
+export PharmacophoreGMM, feature_labels, bondrotate
 export rocs_align
 
 export AtomType, FeatureDef

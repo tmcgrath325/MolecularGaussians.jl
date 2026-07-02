@@ -76,7 +76,8 @@ end
     @test feature_labels(pgmm) == [:Volume]
     # the parallel-vector invariant is enforced at construction.
     @test_throws DimensionMismatch MG.PharmacophoreGMM(pgmm.gaussians, [:Volume],
-        pgmm.graph, pgmm.σfun, pgmm.ϕfun, pgmm.feature_maps)
+        pgmm.graph, pgmm.σfun, pgmm.ϕfun, pgmm.feature_maps,
+        pgmm.axes, pgmm.origins, pgmm.bondtogaussians, pgmm.bondtobonds)
     # self-overlap is a regression pin: identity-label interactions reproduce the
     # per-family "only same-key GMMs score" overlap.
     @test MG.overlap(pgmm, pgmm) ≈ 171.00457064028473 rtol=1e-10
@@ -88,6 +89,61 @@ end
     same = MG.overlap(pg, pg)                                        # equal labels only
     crossed = MG.overlap(pg, pg; interactions = Dict((:Donor, :Acceptor) => 1.0))
     @test same != crossed
+end
+
+@testset "PharmacophoreGMM bond rotation" begin
+    mol = sdftomol(joinpath(@__DIR__, "..", "assets", "data", "E1050_3d.sdf"))
+    remove_hydrogens!(mol)
+    pgmm = PharmacophoreGMM(mol)
+    sgs = MG.rotablesubgraphs(mol)
+    # one bond frame per rotatable bond, and the four bond-geometry vectors agree
+    @test length(pgmm.axes) == length(sgs)
+    @test length(pgmm.axes) == length(pgmm.origins) == length(pgmm.bondtogaussians) == length(pgmm.bondtobonds)
+    # the bond-geometry length invariant is enforced at construction
+    @test_throws DimensionMismatch MG.PharmacophoreGMM(pgmm.gaussians, pgmm.labels,
+        pgmm.graph, pgmm.σfun, pgmm.ϕfun, pgmm.feature_maps,
+        pgmm.axes, pgmm.origins[1:end-1], pgmm.bondtogaussians, pgmm.bondtobonds)
+
+    # rigid=true records no rotatable bonds
+    rig = PharmacophoreGMM(mol; rigid = true)
+    @test isempty(rig.axes) && isempty(rig.bondtogaussians)
+
+    # a disconnected subgraph still builds: a rotatable bond splits only its own
+    # component (this molecule's first-half induced subgraph is disconnected)
+    submol, _ = induced_subgraph(mol, collect(nodeset(mol))[1:Int(floor(end/2))])
+    @test length(connected_components(submol)) > 1
+    @test PharmacophoreGMM(submol) isa PharmacophoreGMM
+
+    b = 1
+    rotated = bondrotate(pgmm, 0.7, b)
+    # exactly the Gaussians the bond maps to are moved; the rest are untouched
+    moved = [i for i in eachindex(pgmm.gaussians) if !(rotated.gaussians[i].μ ≈ pgmm.gaussians[i].μ)]
+    @test sort(moved) ⊆ sort(pgmm.bondtogaussians[b])
+    @test all(rotated.gaussians[i].μ == pgmm.gaussians[i].μ for i in eachindex(pgmm.gaussians) if i ∉ pgmm.bondtogaussians[b])
+    # self-overlap is maximal, so a bond rotation moves the model away from itself
+    @test MG.distance(rotated, pgmm) > 1e-6
+    # +θ then -θ recovers the original; a full turn is the identity
+    @test MG.distance(bondrotate(rotated, -0.7, b), pgmm) < 1e-10
+    @test MG.distance(bondrotate(pgmm, 2π, b), pgmm) < 1e-8
+
+    # rotating the GMM about a bond matches rebuilding it from the graph rotated
+    # about that bond's edge
+    θ = 0.9
+    rebuilt = PharmacophoreGMM(MG.rotate_edge(mol, sgs[b].edge, θ))
+    gmmrot = bondrotate(pgmm, θ, b)
+    @test all(gmmrot.gaussians[k].μ ≈ rebuilt.gaussians[k].μ for k in eachindex(pgmm.gaussians))
+
+    # the sequence form applies rotations in order; mismatched lengths are rejected
+    @test bondrotate(pgmm, [0.3, 0.4], [1, 2]) isa PharmacophoreGMM
+    @test_throws DimensionMismatch bondrotate(pgmm, [0.3], [1, 2])
+
+    # combineatoms=false gives one Gaussian per atom, so a multi-atom feature set
+    # yields more Gaussians than the combined (default) form
+    fm = feature_maps(mol, FAMILY_DEFS, [:Aromatic])
+    natoms = sum(sum(length, sets; init = 0) for sets in values(fm); init = 0)
+    @test any(length(set) > 1 for set in first(values(fm)))       # there is a multi-atom set
+    @test length(PharmacophoreGMM(mol; combineatoms = false, feature_maps = fm).gaussians) == natoms
+    @test length(PharmacophoreGMM(mol; feature_maps = fm).gaussians) < natoms
 end
 
 @testset "atoms_to_feature defaults" begin
