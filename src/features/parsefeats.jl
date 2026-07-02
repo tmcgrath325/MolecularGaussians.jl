@@ -1,11 +1,11 @@
 mutable struct FeatureDefParser
-    lineiter::Base.Iterators.Stateful{Base.EachLine{IOStream}}
+    const lineiter
     line::String
     words::Vector{String}
-    atomtypes::Dict{Symbol,AtomType}
-    features::Dict{Symbol,FeatureDef}
-    families::Dict{Symbol,Vector{Symbol}}
-    function FeatureDefParser(path::String)
+    const atomtypes::Dict{Symbol,AtomType}
+    const features::Dict{Symbol,FeatureDef}
+    const families::Dict{Symbol,Vector{Symbol}}
+    function FeatureDefParser(path::AbstractString)
         lineiter = Iterators.Stateful(eachline(path))
         line = ""
         words = SubString{String}[]
@@ -16,7 +16,19 @@ mutable struct FeatureDefParser
     end
 end
 
-parse_feature_definitions(path::String = joinpath(dirname(@__FILE__), "../../assets/const/FeatureDefinitions.fdef")) = parse_feature_definitions!(FeatureDefParser(path))
+"""
+    parse_feature_definitions(path=<bundled FeatureDefinitions.fdef>) -> FamilyDef
+
+Parse an RDKit-style `.fdef` pharmacophore-definition file into a
+[`FamilyDef`](@ref). The file declares named atom types (`AtomType`) and
+features (`DefineFeature ... EndFeature`), each assigned to a pharmacophore
+family; braced references like `{Donor}` are expanded from previously defined
+atom types.
+
+With no argument, parses the definitions bundled with the package under
+`assets/const/FeatureDefinitions.fdef`.
+"""
+parse_feature_definitions(path::AbstractString = joinpath(dirname(@__FILE__), "../../assets/const/FeatureDefinitions.fdef")) = parse_feature_definitions!(FeatureDefParser(path))
 
 function parse_feature_definitions!(parser::FeatureDefParser)
     while(!isempty(parser.lineiter))
@@ -40,17 +52,19 @@ function parse_atomtype!(parser::FeatureDefParser)
     negater = first(parser.words[2]) == '!'
     if negater
         atomname = Symbol(parser.words[2][2:end])
-        @assert haskey(parser.atomtypes, atomname)
+        haskey(parser.atomtypes, atomname) ||
+            throw(ArgumentError("negated atom type \"$(parser.words[2])\" refers to undefined atom type :$atomname in line: $(parser.line)"))
     end
     smarts = substitute_atom_types(parser.words[3], parser.atomtypes)
     while last(parser.line) == '\\'
         smarts = chop(smarts)
         read_line!(parser)
-        @assert parser.words[1] == parser.line
+        parser.words[1] == parser.line ||
+            throw(ArgumentError("SMARTS continuation line must be a single token with no surrounding or internal whitespace, got: $(parser.line)"))
         smarts = smarts * substitute_atom_types(parser.line, parser.atomtypes)
     end
     if haskey(parser.atomtypes, atomname)
-        parser.atomtypes[atomname] = negater ? parser.atomtypes[atomname] - smarts : parser.atomtypes[atomname] + smarts
+        parser.atomtypes[atomname] = negater ? smarts_andnot(parser.atomtypes[atomname], smarts) : smarts_or(parser.atomtypes[atomname], smarts)
     else
         push!(parser.atomtypes, atomname => AtomType(smarts))
     end
@@ -64,7 +78,8 @@ function parse_featuredef!(parser::FeatureDefParser)
     while last(parser.line) == '\\'
         smarts = chop(smarts)
         read_line!(parser)
-        @assert parser.words[1] == parser.line
+        parser.words[1] == parser.line ||
+            throw(ArgumentError("SMARTS continuation line must be a single token with no surrounding or internal whitespace, got: $(parser.line)"))
         smarts = smarts * substitute_atom_types(parser.line, parser.atomtypes)
     end
     read_line!(parser)

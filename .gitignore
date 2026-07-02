@@ -1,2 +1,13 @@
 /Manifest.toml
+/Manifest-v*.toml
 /extras
+
+# Coverage and allocation-tracking artifacts
+*.jl.cov
+*.jl.*.cov
+*.jl.mem
+
+# Documenter build output and per-machine docs manifests
+/docs/build/
+/docs/Manifest.toml
+/docs/Manifest-v*.toml

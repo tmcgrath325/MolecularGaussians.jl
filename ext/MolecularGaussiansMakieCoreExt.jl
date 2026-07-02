@@ -1,0 +1,78 @@
+module MolecularGaussiansMakieCoreExt
+
+using MolecularGaussians: MolecularGaussians, PharmacophoreGMM
+import MakieCore: plot!
+using MakieCore: @recipe, Theme
+using MolecularGraph: Color, colortype, stick!
+using GaussianMixtureAlignment: gmmdisplay!
+using Colors: Colors
+
+# Fallback palette cycled across GMM components that lack an entry in
+# FEATURE_COLORS. CUD colors: https://jfly.uni-koeln.de/color/#assign
+const DEFAULT_COLORS = [
+    Colors.RGB(0   / 255, 114 / 255, 178 / 255), # blue
+    Colors.RGB(230 / 255, 159 / 255, 0   / 255), # orange
+    Colors.RGB(0   / 255, 158 / 255, 115 / 255), # green
+    Colors.RGB(204 / 255, 121 / 255, 167 / 255), # reddish purple
+    Colors.RGB(86  / 255, 180 / 255, 233 / 255), # sky blue
+    Colors.RGB(213 / 255, 94  / 255, 0   / 255), # vermillion
+    Colors.RGB(240 / 255, 228 / 255, 66  / 255), # yellow
+]
+
+const FEATURE_COLORS = Dict(
+    :Donor         => Color(255, 0,   255),  # magenta
+    :Acceptor      => Color(0,   255, 0  ),  # green
+    :PosIonizable  => Color(255, 0,   0  ),  # red
+    :NegIonizable  => Color(0,   0,   255),  # blue
+    :Hydrophobe    => Color(0,   255, 255),  # cyan
+    :Ring          => Color(255, 128, 255),  # orange
+    :AromaticRing  => Color(255, 64,  0  ),  # brown
+    :Volume        => Color(200, 200, 200),  # light grey
+    :ExcludedVolume=> Color(100, 100, 100),  # dark grey
+)
+
+@recipe(MolGMMDisplay, p) do scene
+    Theme(
+        display = :wire,
+        color = nothing,
+        palette = DEFAULT_COLORS,
+        colors = FEATURE_COLORS,
+        show_mol = true,
+        mol_fun = stick!,
+    )
+end
+
+function MolecularGaussians.pharmacophoredisplay(args...; kwargs...)
+    figaxplot = molgmmdisplay(args...; kwargs...)
+    figaxplot.axis.show_axis[] = false
+    return figaxplot
+end
+
+function plot!(md::MolGMMDisplay{<:NTuple{<:Any,<:PharmacophoreGMM{N,T,K}}}) where {N,T,K}
+    mgmms = [md[i][] for i=1:length(md)]
+    disp = md[:display][]
+    color = md[:color][]
+    colors = md[:colors][]
+    palette = md[:palette][]
+    allkeys = Set{K}()
+    for mgmm in mgmms
+        allkeys = allkeys ∪ keys(mgmm.gmms)
+    end
+    len = length(allkeys)
+    for (i,k) in enumerate(allkeys)
+        col = isnothing(color) ? (haskey(colors, k) ? colors[k] : palette[(i-1) % len + 1]) : color
+        col  = isa(col, Color) ? colortype(col) : col
+        for mgmm in mgmms
+            haskey(mgmm.gmms, k) && gmmdisplay!(md, mgmm.gmms[k]; display=disp, color=col, palette=palette)
+        end
+    end
+    if md[:show_mol][]
+        molfun = md[:mol_fun][]
+        for gmm in mgmms
+            molfun(md, gmm.graph)
+        end
+    end
+    return md
+end
+
+end

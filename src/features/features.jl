@@ -1,15 +1,16 @@
 """
-    feat = atoms_to_feature(atoms, dirs=nothing)
+    feat = atoms_to_feature(mol::SDFMolGraph, nodeset; ϕfun=rocs_volume_amplitude, σfun=vdw_volume_sigma)
 
-Combines Gaussian distributions specified by `atoms` to create a feature repressented by a 
-single Gaussian. The feature is centered at the center of mass of the distributions, and the
-width `σ` of the feature is the average of the distance of individual features from the center 
-added to their widths.
+Combine the atoms of `mol` indexed by `nodeset` into a single non-directional
+`IsotropicGaussian` feature centered at their centroid.
 
-Geometric constraints for the feature can be specified by `dirs`. The returned feature has no
-direction by default.
+`ϕfun(atom)` gives an atom's amplitude and `σfun(atom, ϕ)` its width. For a
+single-atom `nodeset` the feature takes `ϕ = ϕfun(atom)` and `σ = σfun(atom, ϕ)`
+directly. For several atoms, `ϕ` is the mean of `ϕfun` over them and `σ` is
+derived from their van der Waals radii via the combined sphere volume (`σfun` is
+not consulted in this case).
 """
-function atoms_to_feature(mol::SDFMolGraph, nodeset; ϕfun = rocs_amplitude, σfun = vdw_volume_sigma)
+function atoms_to_feature(mol::SDFMolGraph, nodeset; ϕfun = rocs_volume_amplitude, σfun = vdw_volume_sigma)
     if length(nodeset)==1
         atom = props(mol, only(nodeset))
         μ = atom.coords
@@ -20,20 +21,39 @@ function atoms_to_feature(mol::SDFMolGraph, nodeset; ϕfun = rocs_amplitude, σf
         coordmat = hcat([a.coords for a in atoms]...)
         μ = centroid(coordmat, fill(1/length(atoms), length(atoms)))
         ϕ = sum([ϕfun(a) for a in atoms])/length(atoms)
-        σ = sphere_volume_sigma((sum(x -> x^3, [atom_radius(a) for a in atoms]))^(1/3), ϕ)
+        σ = sphere_volume_sigma((sum(x -> x^3, [vdw_radius(a) for a in atoms]))^(1/3), ϕ)
     end
     return IsotropicGaussian(μ, σ, ϕ)
 end
 
-function feature_maps(mol::SimpleMolGraph, fdefs::Vector{FeatureDef})
+# `public` is a soft keyword only on Julia 1.11+; guard so the module still
+# loads on the 1.10 LTS, where the declaration is simply absent.
+@static if VERSION >= v"1.11"
+    eval(Meta.parse("public atoms_to_feature"))
+end
+
+"""
+    feature_maps(mol, fdefs::AbstractVector{<:FeatureDef}) -> Dict{Symbol, Vector{Vector{Int}}}
+    feature_maps(mol, familydef::FamilyDef, families=keys(familydef.families)) -> Dict{Symbol, Vector{Vector{Int}}}
+
+Map each pharmacophore family to the sets of atom indices in `mol` that realize
+it. For every `FeatureDef`, the atoms of each distinct substructure match of its
+SMARTS pattern become one index set, grouped under the feature's family; each
+such set is what [`atoms_to_feature`](@ref) later collapses into a single
+Gaussian.
+
+The second form draws its feature definitions from a [`FamilyDef`](@ref),
+restricted to the requested `families` (all families by default).
+"""
+function feature_maps(mol::SimpleMolGraph, fdefs::AbstractVector{<:FeatureDef})
     featuremaps = Dict{Symbol,Vector{Vector{Int}}}()
     for fdef in fdefs
         query = smartstomol(smarts(fdef))
         iter = substruct_matches(mol, query)
-        matchkeys = Vector{Base.KeySet{Int64, Dict{Int64, Int64}}}()
+        matchkeys = Set{Int}[]
         matches = Vector{Vector{Int}}()
         for it in iter
-            itkeys = keys(it)
+            itkeys = Set(keys(it))
             duplicate = false
             for m in matchkeys
                 if itkeys == m
@@ -55,7 +75,7 @@ function feature_maps(mol::SimpleMolGraph, fdefs::Vector{FeatureDef})
     return featuremaps
 end
 
-function feature_maps(mol::SimpleMolGraph, familydef::FamilyDef, families::Vector{Symbol}=collect(keys(familydef.families)))
-    fdefs = reduce(vcat, [[familydef.features[name] for name in familydef.families[family]] for family in families])
+function feature_maps(mol::SimpleMolGraph, familydef::FamilyDef, families::AbstractVector{Symbol}=collect(keys(familydef.families)))
+    fdefs = [familydef.features[name] for family in families for name in familydef.families[family]]
     return feature_maps(mol, fdefs)
 end

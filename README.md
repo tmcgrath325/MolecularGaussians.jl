@@ -1,6 +1,27 @@
 # MolecularGaussians.jl
 
-Alignment and comparison of small molecules read from .sdf files represented as Gaussian Mixture Models. 
+[![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://tmcgrath325.github.io/MolecularGaussians.jl/stable)
+[![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://tmcgrath325.github.io/MolecularGaussians.jl/dev)
+[![Build Status](https://github.com/tmcgrath325/MolecularGaussians.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/tmcgrath325/MolecularGaussians.jl/actions/workflows/CI.yml?query=branch%3Amain)
+[![Coverage](https://codecov.io/gh/tmcgrath325/MolecularGaussians.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/tmcgrath325/MolecularGaussians.jl)
+[![Version](https://juliahub.com/docs/General/MolecularGaussians/stable/version.svg)](https://juliahub.com/ui/Packages/General/MolecularGaussians)
+[![Aqua QA](https://juliatesting.github.io/Aqua.jl/dev/assets/badge.svg)](https://github.com/JuliaTesting/Aqua.jl)
+
+Alignment and comparison of small molecules read from .sdf files, represented as
+Gaussian mixture models. Each molecule (or a chosen set of its pharmacophore
+features) becomes a mixture of isotropic Gaussians, and
+[GaussianMixtureAlignment.jl](https://github.com/tmcgrath325/GaussianMixtureAlignment.jl)
+provides the overlap, distance, and rigid-alignment machinery.
+
+## Installation
+
+```julia
+julia> using Pkg; Pkg.add("MolecularGaussians")
+```
+
+Full documentation, including an explanation of the underlying concepts and an
+API reference, is available at the
+[documentation site](https://tmcgrath325.github.io/MolecularGaussians.jl/stable).
 
 ## Build GMMs from molecules
 
@@ -17,26 +38,26 @@ julia> # Load SMARTS feature definitions, identify specified types of features, 
 
 julia> familydefs = MG.parse_feature_definitions();
 
-julia> featuremaps1 = MG.feature_maps(mol1, familydefs, [:Donor,:Acceptor,:Aromatic,:NegIonizable])
+julia> feature_maps1 = MG.feature_maps(mol1, familydefs, [:Donor,:Acceptor,:Aromatic,:NegIonizable])
 Dict{Symbol, Vector{Vector{Int64}}} with 4 entries:
   :Acceptor     => [[10], [7], [3], [8], [4], [9], [6], [5]]
   :NegIonizable => [[7, 2, 10, 9, 8], [5, 4, 6, 3, 1]]
   :Donor        => [[8], [4]]
   :Aromatic     => [[22, 25, 27, 26, 24, 28]]
 
-julia> featuremaps2 = MG.feature_maps(mol2, familydefs, [:Donor,:Acceptor,:Aromatic,:NegIonizable])
+julia> feature_maps2 = MG.feature_maps(mol2, familydefs, [:Donor,:Acceptor,:Aromatic,:NegIonizable])
 Dict{Symbol, Vector{Vector{Int64}}} with 4 entries:
   :Acceptor     => [[2], [3], [4], [6], [5]]
   :NegIonizable => [[5, 4, 2, 3, 1]]
   :Donor        => [[3], [6]]
   :Aromatic     => [[22, 21, 20, 18, 24, 23]]
 
-julia> pgmm1 = PharmacophoreGMM(mol1; featuremaps=featuremaps1)
+julia> pgmm1 = PharmacophoreGMM(mol1; feature_maps=feature_maps1)
 PharmacophoreGMM{3, Float64, Symbol, SDFMolGraph} from molecule with formula C18H24O8S2 with 13 Gaussians in 4 GMMs with labels:
 [:Acceptor, :NegIonizable, :Donor, :Aromatic]
 
 
-julia> pgmm2 = PharmacophoreGMM(mol2; featuremaps=featuremaps2)
+julia> pgmm2 = PharmacophoreGMM(mol2; feature_maps=feature_maps2)
 PharmacophoreGMM{3, Float64, Symbol, SDFMolGraph} from molecule with formula C18H24O5S with 9 Gaussians in 4 GMMs with labels:
 [:Acceptor, :NegIonizable, :Donor, :Aromatic]
 ```
