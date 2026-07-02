@@ -4,7 +4,7 @@ using MolecularGaussians: MolecularGaussians, PharmacophoreGMM
 import MakieCore: plot!
 using MakieCore: @recipe, Theme
 using MolecularGraph: Color, colortype, stick!
-using GaussianMixtureAlignment: gmmdisplay!
+using GaussianMixtureAlignment: gmmdisplay!, IsotropicGMM
 using Colors: Colors
 
 # Fallback palette cycled across GMM components that lack an entry in
@@ -56,14 +56,15 @@ function plot!(md::MolGMMDisplay{<:NTuple{<:Any,<:PharmacophoreGMM{N,T,K}}}) whe
     palette = md[:palette][]
     allkeys = Set{K}()
     for mgmm in mgmms
-        allkeys = allkeys ∪ keys(mgmm.gmms)
+        allkeys = allkeys ∪ Set(mgmm.labels)
     end
     len = length(allkeys)
     for (i,k) in enumerate(allkeys)
         col = isnothing(color) ? (haskey(colors, k) ? colors[k] : palette[(i-1) % len + 1]) : color
         col  = isa(col, Color) ? colortype(col) : col
         for mgmm in mgmms
-            haskey(mgmm.gmms, k) && gmmdisplay!(md, mgmm.gmms[k]; display=disp, color=col, palette=palette)
+            idxs = findall(isequal(k), mgmm.labels)
+            isempty(idxs) || gmmdisplay!(md, IsotropicGMM(mgmm.gaussians[idxs]); display=disp, color=col, palette=palette)
         end
     end
     if md[:show_mol][]

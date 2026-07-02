@@ -54,14 +54,15 @@ Building a pharmacophore model proceeds in two stages:
    that realize it. Distinct matches over the same atoms are collapsed to one
    set.
 2. [`PharmacophoreGMM`](@ref) turns each index set into a single Gaussian via
-   [`atoms_to_feature`](@ref) and stores one `IsotropicGMM` per family. The
-   result carries both the per-family mixtures and the underlying molecular
-   graph.
+   [`atoms_to_feature`](@ref), tagging each with its family. The result stores
+   the Gaussians and their parallel family labels alongside the underlying
+   molecular graph.
 
 ## Comparison and alignment
 
-Because a `PharmacophoreGMM` is a family-keyed collection of mixtures,
-comparisons are made family-by-family and summed:
+Because every Gaussian in a `PharmacophoreGMM` carries a family label, overlap
+is restricted to Gaussian pairs whose labels interact — by default only pairs
+sharing a family, so comparisons are made family-by-family and summed:
 
 - `overlap` integrates the product of two mixtures — larger when their features
   coincide in space and type.

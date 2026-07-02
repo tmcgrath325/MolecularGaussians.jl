@@ -63,9 +63,31 @@ end
     fm = feature_maps(mol, FAMILY_DEFS, [:Volume])
     pgmm_fm = PharmacophoreGMM(mol; feature_maps = fm)
     @test pgmm_fm.feature_maps == fm
-    # the type-based eltype agrees with the instance-based one (no stray graph
-    # parameter leaking into the IsotropicGMM element type)
-    @test eltype(typeof(pgmm)) == eltype(pgmm) == Pair{Symbol, MG.IsotropicGMM{3,Float64}}
+    # the type-based eltype agrees with the instance-based one: a PharmacophoreGMM
+    # is a flat labeled GMM, so its element type is the Gaussian, not a keyed pair
+    @test eltype(typeof(pgmm)) == eltype(pgmm) == MG.IsotropicGaussian{3,Float64}
+end
+
+@testset "labeled PharmacophoreGMM" begin
+    mol = sdftomol(joinpath(@__DIR__, "..", "assets", "data", "E1050_3d.sdf"))
+    pgmm = PharmacophoreGMM(mol)
+    # a PharmacophoreGMM is a flat labeled GMM: one label per Gaussian.
+    @test length(pgmm.gaussians) == length(pgmm.labels) == length(pgmm)
+    @test feature_labels(pgmm) == [:Volume]
+    # the parallel-vector invariant is enforced at construction.
+    @test_throws DimensionMismatch MG.PharmacophoreGMM(pgmm.gaussians, [:Volume],
+        pgmm.graph, pgmm.σfun, pgmm.ϕfun, pgmm.feature_maps)
+    # self-overlap is a regression pin: identity-label interactions reproduce the
+    # per-family "only same-key GMMs score" overlap.
+    @test MG.overlap(pgmm, pgmm) ≈ 171.00457064028473 rtol=1e-10
+
+    # cross-label interactions are a new capability the per-family Dict design
+    # could not express: distinct families only overlap when paired explicitly.
+    fm = feature_maps(mol, FAMILY_DEFS, [:Donor, :Acceptor])
+    pg = PharmacophoreGMM(mol; feature_maps = fm)
+    same = MG.overlap(pg, pg)                                        # equal labels only
+    crossed = MG.overlap(pg, pg; interactions = Dict((:Donor, :Acceptor) => 1.0))
+    @test same != crossed
 end
 
 @testset "atoms_to_feature defaults" begin
@@ -385,18 +407,18 @@ end
 
 @testset "ExplicitImports" begin
     # `test_explicit_imports` also checks the MakieCore extension. The ignored
-    # names have no public API in their defining packages: AbstractIsotropicMultiGMM,
-    # ROCSAlignmentResult, centroid, distance, local_align, tanimoto
-    # (GaussianMixtureAlignment) are the internals the core builds on; @recipe,
-    # Theme, plot! (MakieCore) are the recipe interface and Color, colortype
-    # (MolecularGraph) the color plumbing the extension builds on — the same
-    # coupling Aqua's piracy check exempts. The two public-ness checks resolve
-    # "public" accurately only on Julia 1.11+, so they are gated by version; the
-    # other five checks run everywhere.
+    # names have no public API in their defining packages: AbstractGMM,
+    # AbstractLabeledIsotropicGMM, ROCSAlignmentResult, centroid, distance,
+    # local_align, tanimoto (GaussianMixtureAlignment) are the internals the core
+    # builds on; @recipe, Theme, plot! (MakieCore) are the recipe interface and
+    # Color, colortype (MolecularGraph) the color plumbing the extension builds
+    # on — the same coupling Aqua's piracy check exempts. The two public-ness
+    # checks resolve "public" accurately only on Julia 1.11+, so they are gated by
+    # version; the other five checks run everywhere.
     test_explicit_imports(MolecularGaussians;
         all_explicit_imports_are_public = VERSION >= v"1.11" ?
-            (; ignore = (:AbstractIsotropicMultiGMM, :ROCSAlignmentResult, :centroid,
-                         :distance, :local_align, :tanimoto, Symbol("@recipe"),
+            (; ignore = (:AbstractGMM, :AbstractLabeledIsotropicGMM, :ROCSAlignmentResult,
+                         :centroid, :distance, :local_align, :tanimoto, Symbol("@recipe"),
                          :Theme, :plot!, :Color, :colortype)) : false,
         all_qualified_accesses_are_public = VERSION >= v"1.11",
     )

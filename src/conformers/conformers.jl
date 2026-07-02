@@ -76,7 +76,7 @@ _overlap_tform(res::ROCSAlignmentResult) = (res.minimum, res.tform)
 _overlap_tform(res::Tuple) = (res[1], res[2])            # local_align
 _overlap_tform(res) = (res.upperbound, res.tform_params) # gogma_align / tiv_gogma_align
 
-function align_conformers(confs::AbstractVector{<:G}, template::L; alignfun = local_align, kwargs...) where {G<:PharmacophoreGMM, L<:AbstractIsotropicMultiGMM}
+function align_conformers(confs::AbstractVector{<:G}, template::L; alignfun = local_align, kwargs...) where {G<:PharmacophoreGMM, L<:AbstractGMM}
     bestconf = confs[1]
     bestidx = 1
     bestolap = Inf
