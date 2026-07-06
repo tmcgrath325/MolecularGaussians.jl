@@ -4,7 +4,7 @@
 Van der Waals radius of atom `a`, looked up from
 `MolecularGraph.ATOM_VANDERWAALS_RADII` by atomic number.
 """
-vdw_radius(a::SDFAtom) = MolecularGraph.ATOM_VANDERWAALS_RADII[atomnumber(a.symbol)]
+vdw_radius(a::SDFAtom) = MolecularGraph.ATOM_VANDERWAALS_RADII[atom_number(a.symbol)]
 
 const rocs_amplitude = 2.7
 
