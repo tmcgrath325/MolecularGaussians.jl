@@ -95,8 +95,14 @@ function PharmacophoreGMM(mol::SDFMolGraph;
                           σfun = vdw_volume_sigma,
                           ϕfun = a -> one(typeof(vdw_radius(a))),
                           feature_maps::Dict{K,Vector{Vector{Int}}} = Dict{Symbol,Vector{Vector{Int}}}(:Volume => [[i] for i in heavy_atom_idxs(mol)])) where K
-    N = length(props(mol,1).coords)
-    T = eltype(props(mol,1).coords)
+    # SDFMolGraph coordinates are 3-D Float64, so an empty molecule (e.g. a
+    # side chain with no atoms) still has a well-defined dimension and eltype.
+    if isempty(vertices(mol))
+        N, T = 3, Float64
+    else
+        N = length(props(mol,1).coords)
+        T = eltype(props(mol,1).coords)
+    end
 
     # rotatable-bond frames and, per bond, the atoms and downstream bonds it moves
     sgs = rigid ? RotatableSubgraph{T}[] : rotablesubgraphs(mol)
