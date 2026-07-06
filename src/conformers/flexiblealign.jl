@@ -10,7 +10,7 @@ joint_axis(pgmm::PharmacophoreGMM, b) = normalize(pgmm.axes[b])
 joint_origin(pgmm::PharmacophoreGMM, b) = pgmm.origins[b]
 joint_features(pgmm::PharmacophoreGMM, b) = pgmm.bondtogaussians[b]
 joint_children(pgmm::PharmacophoreGMM, b) = pgmm.bondtobonds[b]
-flex(pgmm::PharmacophoreGMM, φ) = bondrotate(pgmm, φ, 1:length(pgmm.axes))
+flex(pgmm::PharmacophoreGMM, φ) = bondrotate(pgmm, φ, eachindex(pgmm.axes))
 
 """
     flexible_align(x::PharmacophoreGMM, y; kwargs...)
