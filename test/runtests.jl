@@ -25,6 +25,8 @@ DocMeta.setdocmeta!(MolecularGaussians, :DocTestSetup,
     doctest(MolecularGaussians)
 end
 
+include("flexible.jl")
+
 
 @testset "Gaussian Mixture Distance" begin
     mol = sdftomol(joinpath(@__DIR__, "..", "assets", "data", "E1050_3d.sdf"))
