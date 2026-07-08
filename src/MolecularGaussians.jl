@@ -21,8 +21,15 @@ using StaticArrays: SVector
 using CoordinateTransformations: LinearMap, Translation
 using Rotations: AngleAxis, RotMatrix
 
-using MolecularGraph: MolecularGraph, SDFAtom, SDFMolGraph, SimpleMolGraph, atom_number, get_prop, is_rotatable, moldisplay, molecular_formula, props, set_prop!, smartstomol, substruct_matches
+using MolecularGraph: MolecularGraph, SDFAtom, SDFMolGraph, SimpleMolGraph, get_prop, is_rotatable, moldisplay, molecular_formula, props, set_prop!, smartstomol, substruct_matches
 using Graphs: Graphs, connected_components, edges, induced_subgraph, neighbors, vertices
+
+# MolecularGraph renamed `atomnumber` to `atom_number` in v0.19.0.
+@static if pkgversion(MolecularGraph) < v"0.19.0"
+    using MolecularGraph: atomnumber as atom_number
+else
+    using MolecularGraph: atom_number
+end
 
 using GaussianMixtureAlignment: IsotropicGaussian, AbstractGMM, AbstractLabeledIsotropicGMM, ROCSAlignmentResult, centroid, local_align, rocs_align, gogma_align, tiv_gogma_align, overlap, distance, tanimoto
 
