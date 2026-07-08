@@ -15,7 +15,7 @@ preserved.
 """
 function transformed(tform, a::SDFAtom)
     newcoords = tform(a.coords)
-    return SDFAtom(a.symbol, a.charge, a.multiplicity, getmass(a), newcoords)
+    return SDFAtom(a.symbol, a.charge, a.multiplicity, getmass(a), Vector{eltype(newcoords)}(newcoords))
 end
 
 function transformed(tform, mol::SDFMolGraph)
