@@ -3,7 +3,7 @@ module MolecularGaussiansMakieCoreExt
 using MolecularGaussians: MolecularGaussians, PharmacophoreGMM
 import MakieCore: plot!
 using MakieCore: @recipe, Theme
-using MolecularGraph: Color, colortype, stick!
+using MolecularGraph: stick!
 using GaussianMixtureAlignment: gmmdisplay!, IsotropicGMM
 using Colors: Colors
 
@@ -20,15 +20,15 @@ const DEFAULT_COLORS = [
 ]
 
 const FEATURE_COLORS = Dict(
-    :Donor         => Color(255, 0,   255),  # magenta
-    :Acceptor      => Color(0,   255, 0  ),  # green
-    :PosIonizable  => Color(255, 0,   0  ),  # red
-    :NegIonizable  => Color(0,   0,   255),  # blue
-    :Hydrophobe    => Color(0,   255, 255),  # cyan
-    :Ring          => Color(255, 128, 255),  # orange
-    :AromaticRing  => Color(255, 64,  0  ),  # brown
-    :Volume        => Color(200, 200, 200),  # light grey
-    :ExcludedVolume=> Color(100, 100, 100),  # dark grey
+    :Donor         => Colors.RGB(255 / 255, 0   / 255, 255 / 255),  # magenta
+    :Acceptor      => Colors.RGB(0   / 255, 255 / 255, 0   / 255),  # green
+    :PosIonizable  => Colors.RGB(255 / 255, 0   / 255, 0   / 255),  # red
+    :NegIonizable  => Colors.RGB(0   / 255, 0   / 255, 255 / 255),  # blue
+    :Hydrophobe    => Colors.RGB(0   / 255, 255 / 255, 255 / 255),  # cyan
+    :Ring          => Colors.RGB(255 / 255, 128 / 255, 255 / 255),  # orange
+    :AromaticRing  => Colors.RGB(255 / 255, 64  / 255, 0   / 255),  # brown
+    :Volume        => Colors.RGB(200 / 255, 200 / 255, 200 / 255),  # light grey
+    :ExcludedVolume=> Colors.RGB(100 / 255, 100 / 255, 100 / 255),  # dark grey
 )
 
 @recipe(MolGMMDisplay, p) do scene
@@ -61,7 +61,6 @@ function plot!(md::MolGMMDisplay{<:NTuple{<:Any,<:PharmacophoreGMM{N,T,K}}}) whe
     len = length(allkeys)
     for (i,k) in enumerate(allkeys)
         col = isnothing(color) ? (haskey(colors, k) ? colors[k] : palette[(i-1) % len + 1]) : color
-        col  = isa(col, Color) ? colortype(col) : col
         for mgmm in mgmms
             idxs = findall(isequal(k), mgmm.labels)
             isempty(idxs) || gmmdisplay!(md, IsotropicGMM(mgmm.gaussians[idxs]); display=disp, color=col, palette=palette)

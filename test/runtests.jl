@@ -211,20 +211,20 @@ end
     # `transformed` maps every atom's coordinates through the tform, preserves the
     # coordinate container type, and leaves the source molecule unmutated.
     mol2 = MG.transformed(tform, mol)
-    @test all(props(mol2, i).coords ≈ tform(props(mol, i).coords) for i in keys(mol.vprops))
+    @test all(props(mol2, i).coords ≈ tform(props(mol, i).coords) for i in vertices(mol))
     @test typeof(props(mol2, 1).coords) == typeof(props(mol, 1).coords)
     @test props(mol, 1).coords == orig1
     # Transforming a PharmacophoreGMM carries the transform into its molecular graph.
     pgmm = PharmacophoreGMM(mol)
     pgmm2 = MG.transform(pgmm, tform)
-    @test all(props(pgmm2.graph, i).coords ≈ tform(props(mol, i).coords) for i in keys(mol.vprops))
+    @test all(props(pgmm2.graph, i).coords ≈ tform(props(mol, i).coords) for i in vertices(mol))
     # `transform` accepts non-affine transforms too (rotation-only, translation-only).
     lin = LinearMap(RotationVec(0.3, -0.2, 0.5))
     tr = Translation(SVector(1.0, 2.0, 3.0))
     pgmm_lin = MG.transform(pgmm, lin)
     pgmm_tr = MG.transform(pgmm, tr)
-    @test all(props(pgmm_lin.graph, i).coords ≈ lin(props(mol, i).coords) for i in keys(mol.vprops))
-    @test all(props(pgmm_tr.graph, i).coords ≈ tr(props(mol, i).coords) for i in keys(mol.vprops))
+    @test all(props(pgmm_lin.graph, i).coords ≈ lin(props(mol, i).coords) for i in vertices(mol))
+    @test all(props(pgmm_tr.graph, i).coords ≈ tr(props(mol, i).coords) for i in vertices(mol))
 end
 
 @testset "PharmacophoreGMM arithmetic" begin
@@ -468,14 +468,15 @@ end
     # local_align, tanimoto (GaussianMixtureAlignment) are the internals the core
     # builds on; @recipe, Theme, plot! (MakieCore) are the recipe interface and
     # Color, colortype (MolecularGraph) the color plumbing the extension builds
-    # on — the same coupling Aqua's piracy check exempts. The two public-ness
-    # checks resolve "public" accurately only on Julia 1.11+, so they are gated by
-    # version; the other five checks run everywhere.
+    # on; SimpleMolGraph (MolecularGraph) is the abstract supertype the core
+    # dispatches on — the same coupling Aqua's piracy check exempts. The two
+    # public-ness checks resolve "public" accurately only on Julia 1.11+, so they
+    # are gated by version; the other five checks run everywhere.
     test_explicit_imports(MolecularGaussians;
         all_explicit_imports_are_public = VERSION >= v"1.11" ?
             (; ignore = (:AbstractGMM, :AbstractLabeledIsotropicGMM, :ROCSAlignmentResult,
                          :centroid, :distance, :local_align, :tanimoto, Symbol("@recipe"),
-                         :Theme, :plot!, :Color, :colortype)) : false,
+                         :Theme, :plot!, :Color, :colortype, :SimpleMolGraph)) : false,
         all_qualified_accesses_are_public = VERSION >= v"1.11",
     )
 end

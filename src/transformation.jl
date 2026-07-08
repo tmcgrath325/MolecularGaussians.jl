@@ -1,3 +1,10 @@
+@static if (pkgversion(MolecularGraph) < v"0.22")
+    getmass(a::SDFAtom) = a.mass
+else
+    getmass(a::SDFAtom) = a.isotope
+end
+
+
 """
     transformed(tform, x)
 
@@ -8,7 +15,7 @@ preserved.
 """
 function transformed(tform, a::SDFAtom)
     newcoords = tform(a.coords)
-    return SDFAtom(a.symbol, a.charge, a.multiplicity, a.mass, newcoords)
+    return SDFAtom(a.symbol, a.charge, a.multiplicity, getmass(a), Vector{eltype(newcoords)}(newcoords))
 end
 
 function transformed(tform, mol::SDFMolGraph)
