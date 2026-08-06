@@ -53,25 +53,25 @@ Dict{Symbol, Vector{Vector{Int64}}} with 4 entries:
   :Aromatic     => [[22, 21, 20, 18, 24, 23]]
 
 julia> pgmm1 = PharmacophoreGMM(mol1; feature_maps=feature_maps1)
-PharmacophoreGMM{3, Float64, Symbol, SDFMolGraph} from molecule with formula C18H24O8S2 with 13 Gaussians labeled:
-[:Acceptor, :NegIonizable, :Donor, :Aromatic]
+PharmacophoreGMM{3, Float64, 2, Symbol, SDFMolGraph} from molecule with formula C18H24O8S2 with 11 stacked Gaussians labeled:
+[:Acceptor, :Donor, :NegIonizable, :Aromatic]
 
 
 julia> pgmm2 = PharmacophoreGMM(mol2; feature_maps=feature_maps2)
-PharmacophoreGMM{3, Float64, Symbol, SDFMolGraph} from molecule with formula C18H24O5S with 9 Gaussians labeled:
-[:Acceptor, :NegIonizable, :Donor, :Aromatic]
+PharmacophoreGMM{3, Float64, 2, Symbol, SDFMolGraph} from molecule with formula C18H24O5S with 7 stacked Gaussians labeled:
+[:Acceptor, :Donor, :NegIonizable, :Aromatic]
 ```
 
 ## Compute overlap, L2 distance, and Tanimoto similarity between two GMMs (prior to alignment)
 ```julia
 julia> overlap(pgmm1, pgmm2)
-14.698770009236481
+14.698770012259153
 
 julia> MG.distance(pgmm1, pgmm2)
-8.351551148172856
+8.35155114196818
 
 julia> tanimoto(pgmm1, pgmm2)
-0.6376817879828839
+0.6376817882020468
 ```
 
 ## Find transformation to align GMMs (maximize overlap)

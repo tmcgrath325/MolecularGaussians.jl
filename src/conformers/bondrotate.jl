@@ -81,25 +81,25 @@ rotate_edges(graph, edgeidxs, angles) = rotate_edges!(deepcopy(graph), edgeidxs,
     bondrotate(pgmm::PharmacophoreGMM, angles, bondidxs::AbstractVector{Int}) -> PharmacophoreGMM
 
 Rotate `pgmm` about its `bondidx`-th rotatable bond by `angle` radians, returning
-a new `PharmacophoreGMM`. The Gaussians the bond moves (`pgmm.bondtogaussians[bondidx]`)
+a new `PharmacophoreGMM`. The components the bond moves (`pgmm.bondtogaussians[bondidx]`)
 and the frames of the bonds downstream of it (`pgmm.bondtobonds[bondidx]`) are
-rotated about the bond's axis; every other Gaussian and bond frame is left in place.
+rotated about the bond's axis; every other component and bond frame is left in place.
 
 The stored `graph` is a rigid reference to the input conformer and is not updated
-by a bond rotation, so after `bondrotate` it no longer matches the moved Gaussians.
+by a bond rotation, so after `bondrotate` it no longer matches the moved components.
 
 The second form applies a sequence of rotations, `angles[k]` about `bondidxs[k]`,
 in order; each rotation acts on the result of the previous one.
 """
-function bondrotate(pgmm::PharmacophoreGMM{N,T,K,G}, angle, axis, origin, rotatedgaussians, rotatedbonds) where {N,T,K,G}
+function bondrotate(pgmm::PharmacophoreGMM{N,T,L,K,G}, angle, axis, origin, rotatedgaussians, rotatedbonds) where {N,T,L,K,G}
     tform = angleaxis_rotation(angle, axis, origin)
     rot = RotMatrix(AngleAxis(angle, axis...))
-    newgaussians = IsotropicGaussian{N,T}[i ∈ rotatedgaussians ? tform(g) : g for (i,g) in enumerate(pgmm.gaussians)]
+    newgaussians = StackedLabeledGaussian{N,T,L,K}[i ∈ rotatedgaussians ? tform(g) : g for (i,g) in enumerate(pgmm.gaussians)]
     # axes are directions (rotate by the linear part only); origins are points
     newaxes = SVector{N,T}[i ∈ rotatedbonds ? SVector{N,T}(rot*a) : a for (i,a) in enumerate(pgmm.axes)]
     neworigins = SVector{N,T}[i ∈ rotatedbonds ? SVector{N,T}(tform(o)) : o for (i,o) in enumerate(pgmm.origins)]
-    return PharmacophoreGMM{N,T,K,G}(newgaussians, pgmm.labels, pgmm.graph, pgmm.σfun, pgmm.ϕfun,
-                                     pgmm.feature_maps, newaxes, neworigins, pgmm.bondtogaussians, pgmm.bondtobonds)
+    return PharmacophoreGMM{N,T,L,K,G}(newgaussians, pgmm.graph, pgmm.σfun, pgmm.ϕfun,
+                                       pgmm.feature_maps, newaxes, neworigins, pgmm.bondtogaussians, pgmm.bondtobonds)
 end
 
 bondrotate(pgmm::PharmacophoreGMM, angle, bondidx::Int) =

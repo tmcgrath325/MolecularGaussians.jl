@@ -53,21 +53,31 @@ Building a pharmacophore model proceeds in two stages:
    molecule and returns, for each requested family, the sets of atom indices
    that realize it. Distinct matches over the same atoms are collapsed to one
    set.
-2. [`PharmacophoreGMM`](@ref) turns each index set into a single Gaussian via
-   [`atoms_to_feature`](@ref), tagging each with its family. The result stores
-   the Gaussians and their parallel family labels alongside the underlying
-   molecular graph.
+2. [`PharmacophoreGMM`](@ref) turns each index set into a feature via
+   [`atoms_to_feature`](@ref), tagging it with its family. Features built from
+   the same atoms are stacked onto one Gaussian, which then carries a width, an
+   amplitude, and a family label per slot — a hydroxyl oxygen, for instance,
+   holds a donor slot and an acceptor slot on a single mean. The result stores
+   these stacked Gaussians alongside the underlying molecular graph.
+
+   Sizing and weighting a family separately from the others is what makes the
+   slots of a stacked Gaussian differ: pass `σfun` and `ϕfun` as `Dict`s keyed
+   by family rather than as single functions.
 
 ## Comparison and alignment
 
-Because every Gaussian in a `PharmacophoreGMM` carries a family label, overlap
-is restricted to Gaussian pairs whose labels interact — by default only pairs
-sharing a family, so comparisons are made family-by-family and summed:
+Because every slot of a `PharmacophoreGMM` carries a family label, overlap is
+restricted to slot pairs whose labels interact — by default only pairs sharing a
+family, so comparisons are made family-by-family and summed:
 
 - `overlap` integrates the product of two mixtures — larger when their features
   coincide in space and type.
 - `distance` is the `L₂` distance between the two density functions.
 - `tanimoto` normalizes overlap into a similarity score in `[0, 1]`.
+
+Stacking pays off here: the distance between two Gaussians is computed once and
+shared by every pairing of their slots, rather than recomputed for each pair of
+features.
 
 These quantities depend on the relative pose of the two molecules. Alignment
 searches for the rigid transformation (rotation and translation) that maximizes
