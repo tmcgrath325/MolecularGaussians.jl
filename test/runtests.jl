@@ -12,7 +12,7 @@ using OffsetArrays: OffsetArray
 using Documenter
 
 using Graphs: induced_subgraph, edges, vertices, connected_components, rem_edge!, neighbors
-using GaussianMixtureAlignment: distance
+using GaussianMixtureAlignment: distance, IsotropicGaussian, LabeledIsotropicGMM
 using MolecularGaussians: nodeset
 
 const MG = MolecularGaussians
@@ -64,20 +64,16 @@ end
     pgmm_fm = PharmacophoreGMM(mol; feature_maps = fm)
     @test pgmm_fm.feature_maps == fm
     # the type-based eltype agrees with the instance-based one: a PharmacophoreGMM
-    # is a flat labeled GMM, so its element type is the Gaussian, not a keyed pair
-    @test eltype(typeof(pgmm)) == eltype(pgmm) == MG.IsotropicGaussian{3,Float64}
+    # is a flat stacked GMM, so its element type is the Gaussian, not a keyed pair
+    @test eltype(typeof(pgmm)) == eltype(pgmm) == MG.StackedLabeledGaussian{3,Float64,1,Symbol}
 end
 
 @testset "labeled PharmacophoreGMM" begin
     mol = sdftomol(joinpath(@__DIR__, "..", "assets", "data", "E1050_3d.sdf"))
     pgmm = PharmacophoreGMM(mol)
-    # a PharmacophoreGMM is a flat labeled GMM: one label per Gaussian.
-    @test length(pgmm.gaussians) == length(pgmm.labels) == length(pgmm)
+    # one component per feature when no two features share a set of atoms
+    @test length(pgmm.gaussians) == length(pgmm) == 28
     @test feature_labels(pgmm) == [:Volume]
-    # the parallel-vector invariant is enforced at construction.
-    @test_throws DimensionMismatch MG.PharmacophoreGMM(pgmm.gaussians, [:Volume],
-        pgmm.graph, pgmm.σfun, pgmm.ϕfun, pgmm.feature_maps,
-        pgmm.axes, pgmm.origins, pgmm.bondtogaussians, pgmm.bondtobonds)
     # self-overlap is a regression pin: identity-label interactions reproduce the
     # per-family "only same-key GMMs score" overlap.
     @test MG.overlap(pgmm, pgmm) ≈ 171.00457064028473 rtol=1e-10
@@ -91,6 +87,53 @@ end
     @test same != crossed
 end
 
+@testset "stacked PharmacophoreGMM" begin
+    mol = sdftomol(joinpath(@__DIR__, "..", "assets", "data", "E1050_3d.sdf"))
+    families = [:Donor, :Acceptor, :Aromatic, :NegIonizable]
+    fm = feature_maps(mol, FAMILY_DEFS, families)
+    pgmm = PharmacophoreGMM(mol; feature_maps = fm)
+    nfeatures = sum(length, values(fm))
+
+    # Features built from the same atoms — here hydroxyls, which are both donors and
+    # acceptors — share one component, so there are fewer components than features and
+    # the stacking degree is the largest number of features on any one atom set.
+    @test length(pgmm.gaussians) < nfeatures
+    @test pgmm isa PharmacophoreGMM{3,Float64,2,Symbol}
+    @test sum(g -> count(!iszero, g.ϕ), pgmm.gaussians) == nfeatures
+    @test sort(feature_labels(pgmm)) == sort(families)
+    stacked = filter(g -> count(!iszero, g.ϕ) > 1, pgmm.gaussians)
+    @test !isempty(stacked)
+    @test all(sort(collect(g.labels)) == [:Acceptor, :Donor] for g in stacked)
+
+    # Stacking is a representation change, not a modeling change: overlaps match those of
+    # the mean-duplicated labeled model, with and without interaction weights. The two
+    # representations sum the same terms in a different order, so they agree to rounding.
+    unstacked = LabeledIsotropicGMM(
+        [IsotropicGaussian(g.μ, g.σ[j], g.ϕ[j]) for g in pgmm.gaussians
+             for j in eachindex(g.labels) if !iszero(g.ϕ[j])],
+        [l for g in pgmm.gaussians for (j, l) in pairs(g.labels) if !iszero(g.ϕ[j])])
+    @test length(unstacked.gaussians) == nfeatures
+    @test MG.overlap(pgmm, pgmm) ≈ MG.overlap(unstacked, unstacked) rtol=1e-14
+    interactions = Dict((:Donor, :Acceptor) => 0.5, (:Donor, :Donor) => 1.0)
+    @test MG.overlap(pgmm, pgmm; interactions) ≈ MG.overlap(unstacked, unstacked; interactions) rtol=1e-14
+
+    # Padded slots carry zero amplitude and a positive width, and repeat a label the
+    # component already has, so they add no overlap and no new feature label.
+    padded = filter(g -> count(!iszero, g.ϕ) < 2, pgmm.gaussians)
+    @test !isempty(padded)
+    @test all(all(>(0), g.σ) && g.labels[1] == g.labels[2] for g in padded)
+
+    # A Dict of per-family functions sizes and weights each family separately, which is
+    # what distinguishes the stacked slots of one component from each other.
+    σfun = Dict(f => ((a, ϕ) -> 1.0 + i) for (i, f) in enumerate(families))
+    ϕfun = Dict(f => (a -> 1.0 / i) for (i, f) in enumerate(families))
+    perfamily = PharmacophoreGMM(mol; feature_maps = fm, σfun, ϕfun)
+    g = first(x for x in perfamily.gaussians if count(!iszero, x.ϕ) > 1)
+    @test allunique(g.σ) && allunique(g.ϕ)
+    # a family the Dict does not cover is an error, not a silent default
+    @test_throws KeyError PharmacophoreGMM(mol; feature_maps = fm, ϕfun = Dict(:Donor => a -> 1.0))
+end
+
 @testset "PharmacophoreGMM bond rotation" begin
     mol = sdftomol(joinpath(@__DIR__, "..", "assets", "data", "E1050_3d.sdf"))
     remove_hydrogens!(mol)
@@ -100,7 +143,7 @@ end
     @test length(pgmm.axes) == length(sgs)
     @test length(pgmm.axes) == length(pgmm.origins) == length(pgmm.bondtogaussians) == length(pgmm.bondtobonds)
     # the bond-geometry length invariant is enforced at construction
-    @test_throws DimensionMismatch MG.PharmacophoreGMM(pgmm.gaussians, pgmm.labels,
+    @test_throws DimensionMismatch MG.PharmacophoreGMM(pgmm.gaussians,
         pgmm.graph, pgmm.σfun, pgmm.ϕfun, pgmm.feature_maps,
         pgmm.axes, pgmm.origins[1:end-1], pgmm.bondtogaussians, pgmm.bondtobonds)
 
@@ -154,6 +197,12 @@ end
     # build an IsotropicGaussian for both a single-atom and a multi-atom nodeset.
     @test MG.atoms_to_feature(mol, nodes[1:1]) isa MG.IsotropicGaussian
     @test MG.atoms_to_feature(mol, nodes[1:3]) isa MG.IsotropicGaussian
+    # A combined feature is a property of its set of atoms, so listing them in another
+    # order must give the identical width — the van der Waals radii come from a Float32
+    # table, where accumulating the combined volume would otherwise be order-dependent.
+    fwd = MG.atoms_to_feature(mol, nodes[1:5])
+    rev = MG.atoms_to_feature(mol, reverse(nodes[1:5]))
+    @test fwd.σ == rev.σ && fwd.ϕ == rev.ϕ
 end
 
 @testset "PharmacophoreGMM alignment" begin
@@ -464,7 +513,7 @@ end
 @testset "ExplicitImports" begin
     # `test_explicit_imports` also checks the MakieCore extension. The ignored
     # names have no public API in their defining packages: AbstractGMM,
-    # AbstractLabeledIsotropicGMM, ROCSAlignmentResult, centroid, distance,
+    # AbstractStackedLabeledIsotropicGMM, ROCSAlignmentResult, centroid, distance,
     # local_align, tanimoto (GaussianMixtureAlignment) are the internals the core
     # builds on; @recipe, Theme, plot! (MakieCore) are the recipe interface and
     # Color, colortype (MolecularGraph) the color plumbing the extension builds
@@ -474,7 +523,7 @@ end
     # are gated by version; the other five checks run everywhere.
     test_explicit_imports(MolecularGaussians;
         all_explicit_imports_are_public = VERSION >= v"1.11" ?
-            (; ignore = (:AbstractGMM, :AbstractLabeledIsotropicGMM, :ROCSAlignmentResult,
+            (; ignore = (:AbstractGMM, :AbstractStackedLabeledIsotropicGMM, :ROCSAlignmentResult,
                          :centroid, :distance, :local_align, :tanimoto, Symbol("@recipe"),
                          :Theme, :plot!, :Color, :colortype, :SimpleMolGraph)) : false,
         all_qualified_accesses_are_public = VERSION >= v"1.11",

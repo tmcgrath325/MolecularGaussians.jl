@@ -1,10 +1,10 @@
 module MolecularGaussiansMakieCoreExt
 
-using MolecularGaussians: MolecularGaussians, PharmacophoreGMM
+using MolecularGaussians: MolecularGaussians, PharmacophoreGMM, feature_labels
 import MakieCore: plot!
 using MakieCore: @recipe, Theme
 using MolecularGraph: stick!
-using GaussianMixtureAlignment: gmmdisplay!, IsotropicGMM
+using GaussianMixtureAlignment: gmmdisplay!, IsotropicGaussian, IsotropicGMM
 using Colors: Colors
 
 # Fallback palette cycled across GMM components that lack an entry in
@@ -48,7 +48,15 @@ function MolecularGaussians.pharmacophoredisplay(args...; kwargs...)
     return figaxplot
 end
 
-function plot!(md::MolGMMDisplay{<:NTuple{<:Any,<:PharmacophoreGMM{N,T,K}}}) where {N,T,K}
+# Unstack the slots labeled `k` into plain Gaussians. Amplitude-zero slots are padding
+# rather than features, and would otherwise be drawn at their arbitrary padded width.
+function labeled_gmm(mgmm::PharmacophoreGMM{N,T,L,K}, k) where {N,T,L,K}
+    return IsotropicGMM([IsotropicGaussian(g.μ, g.σ[j], g.ϕ[j])
+                         for g in mgmm.gaussians for j in eachindex(g.labels)
+                         if g.labels[j] == k && !iszero(g.ϕ[j])])
+end
+
+function plot!(md::MolGMMDisplay{<:NTuple{<:Any,<:PharmacophoreGMM{N,T,L,K}}}) where {N,T,L,K}
     mgmms = [md[i][] for i=1:length(md)]
     disp = md[:display][]
     color = md[:color][]
@@ -56,14 +64,14 @@ function plot!(md::MolGMMDisplay{<:NTuple{<:Any,<:PharmacophoreGMM{N,T,K}}}) whe
     palette = md[:palette][]
     allkeys = Set{K}()
     for mgmm in mgmms
-        allkeys = allkeys ∪ Set(mgmm.labels)
+        allkeys = allkeys ∪ Set(feature_labels(mgmm))
     end
     len = length(allkeys)
     for (i,k) in enumerate(allkeys)
         col = isnothing(color) ? (haskey(colors, k) ? colors[k] : palette[(i-1) % len + 1]) : color
         for mgmm in mgmms
-            idxs = findall(isequal(k), mgmm.labels)
-            isempty(idxs) || gmmdisplay!(md, IsotropicGMM(mgmm.gaussians[idxs]); display=disp, color=col, palette=palette)
+            gmm = labeled_gmm(mgmm, k)
+            isempty(gmm.gaussians) || gmmdisplay!(md, gmm; display=disp, color=col, palette=palette)
         end
     end
     if md[:show_mol][]

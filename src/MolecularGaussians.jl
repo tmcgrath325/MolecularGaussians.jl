@@ -31,7 +31,7 @@ else
     using MolecularGraph: atom_number
 end
 
-using GaussianMixtureAlignment: IsotropicGaussian, AbstractGMM, AbstractLabeledIsotropicGMM, ROCSAlignmentResult, centroid, local_align, rocs_align, gogma_align, tiv_gogma_align, overlap, distance, tanimoto
+using GaussianMixtureAlignment: IsotropicGaussian, StackedLabeledGaussian, StackedLabeledIsotropicGMM, AbstractGMM, AbstractStackedLabeledIsotropicGMM, ROCSAlignmentResult, centroid, local_align, rocs_align, gogma_align, tiv_gogma_align, overlap, distance, tanimoto
 
 # The alignment functions default to AutoForwardDiff(); loading ForwardDiff
 # activates the DifferentiationInterface backend that default requires.
