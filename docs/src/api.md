@@ -24,6 +24,17 @@ transform
 bondrotate
 ```
 
+## Flexible alignment
+
+`flexible_align` globally aligns a molecule onto another while rotating about each of its
+rotatable bonds, searching the bond angles continuously alongside the rigid transform rather
+than enumerating discrete conformers. `aligned` returns the posed, flexed molecule and
+`joint_angles` the optimized bond angles.
+
+```@docs
+flexible_align
+```
+
 ## Feature definitions
 
 ```@docs
@@ -45,6 +56,8 @@ documentation, or query them at the REPL with `?`.
 - `overlap`, `distance`, `tanimoto` — compare two mixtures (see [Concepts](@ref)).
 - `local_align` — refine a pose to a nearby overlap maximum.
 - `gogma_align`, `tiv_gogma_align` — global branch-and-bound alignment.
+- `flex_gogma_align`, `aligned`, `joint_angles` — the flexible branch-and-bound
+  search underlying [`flexible_align`](@ref) and its result accessors.
 - `rocs_align` — local alignment from a starting pose.
 
 Because `distance` is also exported by other loaded packages, qualify it as

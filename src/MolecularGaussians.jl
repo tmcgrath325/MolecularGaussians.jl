@@ -20,6 +20,7 @@ module MolecularGaussians
 using StaticArrays: SVector
 using CoordinateTransformations: LinearMap, Translation
 using Rotations: AngleAxis, RotMatrix
+using LinearAlgebra: normalize
 
 using MolecularGraph: MolecularGraph, SDFAtom, SDFMolGraph, SimpleMolGraph, get_prop, is_rotatable, moldisplay, molecular_formula, props, set_prop!, smartstomol, substruct_matches
 using Graphs: Graphs, connected_components, edges, induced_subgraph, neighbors, vertices
@@ -32,6 +33,9 @@ else
 end
 
 using GaussianMixtureAlignment: IsotropicGaussian, StackedLabeledGaussian, StackedLabeledIsotropicGMM, AbstractGMM, AbstractStackedLabeledIsotropicGMM, ROCSAlignmentResult, centroid, local_align, rocs_align, gogma_align, tiv_gogma_align, overlap, distance, tanimoto
+using GaussianMixtureAlignment: flex_gogma_align, aligned, joint_angles
+# imported (not just `using`) because the PharmacophoreGMM methods below extend them
+import GaussianMixtureAlignment: njoints, joint_axis, joint_origin, joint_features, joint_children, flex
 
 # The alignment functions default to AutoForwardDiff(); loading ForwardDiff
 # activates the DifferentiationInterface backend that default requires.
@@ -39,6 +43,7 @@ import ForwardDiff
 
 export local_align, gogma_align, tiv_gogma_align, overlap, distance, tanimoto
 export PharmacophoreGMM, feature_labels, bondrotate
+export flexible_align, flex_gogma_align, aligned, joint_angles
 export rocs_align
 
 export AtomType, FeatureDef
@@ -79,5 +84,6 @@ include("gmms.jl")
 
 include("conformers/bondrotate.jl")
 include("conformers/conformers.jl")
+include("conformers/flexiblealign.jl")
 
 end
