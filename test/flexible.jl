@@ -40,3 +40,26 @@ import ForwardDiff
     @test aligned(res) isa PharmacophoreGMM
     @test length(joint_angles(res)) == K
 end
+
+@testset "flexible alignment: articulated target" begin
+    mol = sdftomol(joinpath(@__DIR__, "..", "assets", "data", "E1103_3d.sdf"))
+    p = PharmacophoreGMM(mol)
+    K = GMA.njoints(p)
+    target = GMA.flex_pose((0.3, -0.2, 0.4, 0.8, -1.0, 0.5, 0.9, -0.7), p)
+
+    # a molecule used as the target keeps its input conformation unless asked otherwise
+    fixed = flexible_align(p, target; maxsplits = 10)
+    @test GMA.target_joint_angles(fixed) == ()
+    @test all(GMA.aligned_target(fixed).gaussians[i].μ == target.gaussians[i].μ for i in eachindex(target.gaussians))
+
+    # with `flextarget`, the target's rotatable bonds are searched too
+    both = flexible_align(p, target; flextarget = true, maxsplits = 10)
+    @test length(GMA.target_joint_angles(both)) == K
+    @test GMA.aligned_target(both) isa PharmacophoreGMM
+    @test both.lowerbound <= both.upperbound
+
+    # the self-overlap penalty leaves the reported objective consistent with the posed models
+    pen = flexible_align(p, target; selfoverlap = 1.0, maxsplits = 10)
+    xt = aligned(pen)
+    @test pen.upperbound ≈ -overlap(xt, target) + GMA.penalty(GMA.SelfOverlap(p), xt) atol = 1.0e-8
+end

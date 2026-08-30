@@ -19,8 +19,11 @@ Globally align molecule model `x` onto `y`, optimizing the rigid rotation and tr
 together with a rotation about each of `x`'s rotatable bonds. Returns a
 `FlexibleAlignmentResult`; `aligned(result)` is the posed, flexed `x`.
 
-This is a thin wrapper over `flex_gogma_align`; keyword arguments (tolerances, iteration limits,
-`interactions`) are forwarded to it. Unlike enumerating discrete conformers and aligning each
-rigidly, the bond angles are searched continuously alongside the rigid transform.
+This is a thin wrapper over `flex_gogma_align`; keyword arguments are forwarded to it:
+tolerances and iteration limits, `interactions`, `selfoverlap` (a penalty on the overlap the
+molecule acquires with itself by folding) and `flextarget` (search the rotatable bonds of a
+`PharmacophoreGMM` target as well; by default a target is held in its input conformation).
+Unlike enumerating discrete conformers and aligning each rigidly, the bond angles are
+searched continuously alongside the rigid transform.
 """
 flexible_align(x::PharmacophoreGMM, y::AbstractGMM; kwargs...) = flex_gogma_align(x, y; kwargs...)
