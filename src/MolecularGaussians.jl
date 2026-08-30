@@ -54,7 +54,7 @@ export PharmacophoreGMM, feature_labels, bondrotate
 export flexible_align, flex_gogma_align, aligned, joint_angles
 export rocs_align
 
-export partial_charges, physics_gmm, physics_interactions
+export partial_charges, physics_gmm, physics_interactions, physics_self_interactions
 export AtomType, FeatureDef
 export parse_feature_definitions, feature_maps
 

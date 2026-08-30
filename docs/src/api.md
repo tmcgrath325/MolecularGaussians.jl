@@ -42,9 +42,27 @@ repulsive steric core, and a Coulomb field whose amplitudes are Gasteiger partia
 as an alternative to SMARTS pharmacophore features. Score or align two such models with the
 coefficients from [`physics_interactions`](@ref).
 
+A full flexible overlay of two molecules, searching their rotatable bonds alongside the
+rigid transform, scoring shape, steric clash, and electrostatics together, and charging the
+moving molecule for any overlap it acquires with itself by folding:
+
+```julia
+x = physics_gmm(sdftomol("molA.sdf"))
+y = physics_gmm(sdftomol("molB.sdf"))
+res = flexible_align(x, y;
+    interactions = physics_interactions(),
+    selfoverlap = 1.0,
+    selfoverlap_interactions = physics_self_interactions())
+aligned(res)   # the posed, flexed molA model
+```
+
+The self-overlap coefficients differ from the scoring ones in the sign of the steric term;
+see [`physics_self_interactions`](@ref).
+
 ```@docs
 physics_gmm
 physics_interactions
+physics_self_interactions
 partial_charges
 atom_group_charges
 physics_feature_maps

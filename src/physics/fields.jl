@@ -29,7 +29,10 @@ physics_feature_maps(mol::SimpleMolGraph; families=(:VdW, :Steric, :Charge)) =
 Per-family width functions for the physics fields: `:VdW` uses the volume convention
 (`vdw_volume_sigma`), `:Steric` is `steric_scale` times the van der Waals radius, and
 `:Charge` has the fixed width `charge_sigma` (in the coordinate units, Å for SDF input).
-The defaults are heuristic starting points, not fitted values.
+
+At `steric_scale = 0.5` a unit-weighted steric term cancels roughly two thirds of the shape
+term at van der Waals contact; by 0.7 it overwhelms it, leaving no net attraction. The
+folded-versus-extended contrast of the self-overlap penalty is insensitive to the scale.
 """
 physics_sigma_functions(; steric_scale=0.5, charge_sigma=1.0) = Dict{Symbol,Any}(
     :VdW => vdw_volume_sigma,
@@ -55,14 +58,21 @@ function physics_phi_functions(mol::SimpleMolGraph; amplitude=rocs_amplitude, ni
 end
 
 """
-    physics_interactions(; vdw=1.0, steric=1.0, charge=1.0)
+    physics_interactions(; vdw=1.0, steric=1.0, charge=30.0)
 
 Interaction coefficients pairing each physics family with itself, for the `interactions`
 keyword of `overlap` and the alignment functions: `vdw` (attractive), `-steric` (the steric
 field repels), and `charge` (positive rewards matching charge sign — electrostatic
 similarity; pass a negative value for complementarity).
+
+The scales balance fields of very different raw magnitude: partial-charge amplitudes are
+~0.1–0.3 against volume amplitudes of 2.7, so at `charge = 30` the electrostatic term
+contributes on the order of one percent of the shape term for a drug-like molecule at
+default widths, and at `steric = 1` the steric term cancels roughly two thirds of the
+shape term at van der Waals contact (`steric_scale = 0.5`). Treat all three as starting
+points to tune.
 """
-physics_interactions(; vdw=1.0, steric=1.0, charge=1.0) = Dict{Tuple{Symbol,Symbol},Float64}(
+physics_interactions(; vdw=1.0, steric=1.0, charge=30.0) = Dict{Tuple{Symbol,Symbol},Float64}(
     (:VdW, :VdW) => vdw,
     (:Steric, :Steric) => -steric,
     (:Charge, :Charge) => charge,
@@ -94,3 +104,20 @@ end
 @static if VERSION >= v"1.11"
     eval(Meta.parse("public physics_feature_maps, physics_sigma_functions, physics_phi_functions, atom_group_charges"))
 end
+
+"""
+    physics_self_interactions(; vdw=1.0, steric=1.0, charge=30.0)
+
+Interaction coefficients for the *self-overlap penalty* of a physics-field model (the
+`selfoverlap_interactions` keyword of `flexible_align`). They differ from
+[`physics_interactions`](@ref) in the sign of the steric term: between two models a steric
+clash is scored negatively, but within one model it must be charged positively, or folding
+into self-clash would lower the penalty instead of raising it. The positive `charge`
+coefficient penalizes bringing like charges together and rewards opposite ones
+(intramolecular electrostatics).
+"""
+physics_self_interactions(; vdw=1.0, steric=1.0, charge=30.0) = Dict{Tuple{Symbol,Symbol},Float64}(
+    (:VdW, :VdW) => vdw,
+    (:Steric, :Steric) => steric,
+    (:Charge, :Charge) => charge,
+)

@@ -85,7 +85,7 @@ end
 
     # interaction coefficients: attraction for :VdW and :Charge, repulsion for :Steric
     inter = physics_interactions(; steric=0.5)
-    @test inter[(:VdW, :VdW)] == 1.0 && inter[(:Steric, :Steric)] == -0.5 && inter[(:Charge, :Charge)] == 1.0
+    @test inter[(:VdW, :VdW)] == 1.0 && inter[(:Steric, :Steric)] == -0.5 && inter[(:Charge, :Charge)] == 30.0
 
     # the fields compose: overlap and rigid local alignment run with the physics coefficients
     q = physics_gmm(sdftomol(joinpath(@__DIR__, "..", "assets", "data", "E1103_3d.sdf")))
@@ -99,4 +99,28 @@ end
     # a families subset skips the charge computation and the absent labels
     pv = physics_gmm(mol; families=(:VdW, :Steric))
     @test sort(feature_labels(pv)) == [:Steric, :VdW]
+end
+
+@testset "physics self-overlap interactions" begin
+    selfint = physics_self_interactions(; steric=2.0)
+    @test selfint[(:Steric, :Steric)] == 2.0 > 0        # positive within a model
+    @test physics_interactions()[(:Steric, :Steric)] < 0 # negative between models
+    @test selfint[(:VdW, :VdW)] == 1.0 && selfint[(:Charge, :Charge)] == 30.0
+
+    mol = sdftomol(joinpath(@__DIR__, "..", "assets", "data", "E1103_3d.sdf"))
+    x = physics_gmm(mol)
+    # folding the molecule onto itself raises the self-overlap penalty
+    p = GMA.SelfOverlap(x; interactions=physics_self_interactions())
+    K = GMA.njoints(x)
+    folded = argmax(φ -> GMA.penalty(p, GMA.flex(x, fill(φ, K))), range(-π, π; length=13))
+    @test GMA.penalty(p, GMA.flex(x, fill(folded, K))) > GMA.penalty(p, x)
+
+    # the penalized flexible overlay reports the penalized objective at its own parameters
+    target = GMA.flex_pose((0.3, -0.2, 0.4, 0.8, -1.0, 0.5, 0.9, -0.7), x)
+    res = flexible_align(x, target;
+        interactions=physics_interactions(), selfoverlap=1.0,
+        selfoverlap_interactions=physics_self_interactions(), maxsplits=10)
+    xt = aligned(res)
+    pσ, pϕ = GMA.pairwise_consts(x, target, physics_interactions())
+    @test res.upperbound ≈ -overlap(xt, target, pσ, pϕ) + GMA.penalty(p, xt) atol = 1.0e-8
 end
