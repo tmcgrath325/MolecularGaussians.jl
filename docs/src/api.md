@@ -35,6 +35,24 @@ than enumerating discrete conformers. `aligned` returns the posed, flexed molecu
 flexible_align
 ```
 
+## Physics fields
+
+Physics-based per-atom feature families — an attractive van der Waals volume, a narrower
+repulsive steric core, and a Coulomb field whose amplitudes are Gasteiger partial charges —
+as an alternative to SMARTS pharmacophore features. Score or align two such models with the
+coefficients from [`physics_interactions`](@ref).
+
+```@docs
+physics_gmm
+physics_interactions
+partial_charges
+atom_group_charges
+physics_feature_maps
+physics_sigma_functions
+physics_phi_functions
+AtomIndexed
+```
+
 ## Feature definitions
 
 ```@docs

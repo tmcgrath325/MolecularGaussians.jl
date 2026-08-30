@@ -23,7 +23,15 @@ using Rotations: AngleAxis, RotMatrix
 using LinearAlgebra: normalize
 
 using MolecularGraph: MolecularGraph, SDFAtom, SDFMolGraph, SimpleMolGraph, get_prop, is_rotatable, moldisplay, molecular_formula, props, set_prop!, smartstomol, substruct_matches
+using MolecularGraph: atom_symbol, hybridization, implicit_hydrogens
+# MolecularGraph renamed `charge` to `atom_charge` in v0.19.0.
+@static if pkgversion(MolecularGraph) < v"0.19.0"
+    using MolecularGraph: charge as atom_charge
+else
+    using MolecularGraph: atom_charge
+end
 using Graphs: Graphs, connected_components, edges, induced_subgraph, neighbors, vertices
+using Graphs: nv, src, dst
 
 # MolecularGraph renamed `atomnumber` to `atom_number` in v0.19.0.
 @static if pkgversion(MolecularGraph) < v"0.19.0"
@@ -46,6 +54,7 @@ export PharmacophoreGMM, feature_labels, bondrotate
 export flexible_align, flex_gogma_align, aligned, joint_angles
 export rocs_align
 
+export partial_charges, physics_gmm, physics_interactions
 export AtomType, FeatureDef
 export parse_feature_definitions, feature_maps
 
@@ -85,5 +94,8 @@ include("gmms.jl")
 include("conformers/bondrotate.jl")
 include("conformers/conformers.jl")
 include("conformers/flexiblealign.jl")
+
+include("physics/partialcharges.jl")
+include("physics/fields.jl")
 
 end

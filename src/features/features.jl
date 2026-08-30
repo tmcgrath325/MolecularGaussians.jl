@@ -1,4 +1,23 @@
 """
+    AtomIndexed(f)
+
+Wrap a function so the feature-building machinery calls it with the molecule and the atom's
+vertex index — `f(mol, i)` for an amplitude, `f(mol, i, ϕ)` for a width — instead of with the
+atom's properties. Use for quantities that depend on the atom's graph context, such as
+partial charges.
+"""
+struct AtomIndexed{F}
+    f::F
+end
+
+# feature amplitude and width of one atom: plain functions see the atom's properties,
+# `AtomIndexed` functions see the molecule and vertex index
+_atom_value(f, mol, node) = f(props(mol, node))
+_atom_value(f::AtomIndexed, mol, node) = f.f(mol, node)
+_atom_value(f, mol, node, ϕ) = f(props(mol, node), ϕ)
+_atom_value(f::AtomIndexed, mol, node, ϕ) = f.f(mol, node, ϕ)
+
+"""
     feat = atoms_to_feature(mol::SDFMolGraph, nodeset; ϕfun=rocs_volume_amplitude, σfun=vdw_volume_sigma)
 
 Combine the atoms of `mol` indexed by `nodeset` into a single non-directional
@@ -12,15 +31,16 @@ not consulted in this case).
 """
 function atoms_to_feature(mol::SDFMolGraph, nodeset; ϕfun = rocs_volume_amplitude, σfun = vdw_volume_sigma)
     if length(nodeset)==1
-        atom = props(mol, only(nodeset))
+        node = only(nodeset)
+        atom = props(mol, node)
         μ = atom.coords
-        σ = σfun(atom, ϕfun(atom))
-        ϕ = ϕfun(atom)
+        ϕ = _atom_value(ϕfun, mol, node)
+        σ = _atom_value(σfun, mol, node, ϕ)
     else
         atoms = [props(mol, node) for node in nodeset]
         coordmat = hcat([a.coords for a in atoms]...)
         μ = centroid(coordmat, fill(1/length(atoms), length(atoms)))
-        ϕ = sum([ϕfun(a) for a in atoms])/length(atoms)
+        ϕ = sum([_atom_value(ϕfun, mol, node) for node in nodeset])/length(nodeset)
         # Accumulate the combined volume at the coordinates' precision: `vdw_radius`
         # reads a Float32 table, and summing cubes there leaves the width dependent on
         # the order the atoms are listed in.

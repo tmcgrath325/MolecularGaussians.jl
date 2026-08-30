@@ -26,6 +26,7 @@ DocMeta.setdocmeta!(MolecularGaussians, :DocTestSetup,
 end
 
 include("flexible.jl")
+include("physics.jl")
 
 
 @testset "Gaussian Mixture Distance" begin
